@@ -1,0 +1,2167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Diary</title>
+  <link rel="icon" type="image/svg+xml" href="icons/app-icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#16213e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Diary">
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/atom-one-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/highlight.min.js"></script>
+  <style>
+    /* ===== リセット・テーマ変数 ===== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; background: #1a1a2e; }
+
+    body {
+      /* ダークテーマ（既定） */
+      --bg-base: #1a1a2e;
+      --bg-panel: #16213e;
+      --bg-deep: #0f3460;
+      --bg-deeper: #0d1e3a;
+      --accent-yellow: #f0e040;
+      --accent-pink: #e94560;
+      --accent-cyan: #00c8ff;
+      --text-primary: #e0e0e0;
+      --text-secondary: #cccccc;
+      --text-muted: #888888;
+      --text-heading: #ffffff;
+      --border-base: #1e3a6e;
+      --border-deep: #1a4a8a;
+      --tag-bg: #1e1c00;
+      --tag-text: #f0e040;
+      color-scheme: dark;
+    }
+    body.light {
+      --bg-base: #eef0f7;
+      --bg-panel: #E8EBF5;
+      --bg-deep: #dde2f0;
+      --bg-deeper: #f6f7fb;
+      --accent-yellow: #b09a10;
+      --accent-pink: #e94560;
+      --accent-cyan: #2a5ab5;
+      --text-primary: #2a2e40;
+      --text-secondary: #4a4e60;
+      --text-muted: #7a7e90;
+      --text-heading: #1a1e30;
+      --border-base: #c8cfe0;
+      --border-deep: #b8c2d8;
+      --tag-bg: #e2ddb8;
+      --tag-text: #6a5c10;
+      color-scheme: light;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* スキャンライン（ダークのみ） */
+    body:not(.light)::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0, 0, 0, 0.08) 3px, rgba(0, 0, 0, 0.08) 4px
+      );
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+    }
+
+    /* スクロールバー */
+    body:not(.light) ::-webkit-scrollbar { width: 6px; height: 6px; }
+    body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
+    body:not(.light) ::-webkit-scrollbar-thumb { background: var(--accent-pink); border-radius: 3px; }
+    body:not(.light) ::-webkit-scrollbar-thumb:hover { background: #ff6080; }
+    body.light ::-webkit-scrollbar { width: 6px; height: 6px; }
+    body.light ::-webkit-scrollbar-thumb { background: #B8C2D8; border-radius: 3px; }
+    body.light ::-webkit-scrollbar-thumb:hover { background: #8890aa; }
+
+    /* ===== ヘッダー ===== */
+    #header {
+      background: var(--bg-panel);
+      border-bottom: 0.5px solid #f0e04030;
+      padding: 10px 12px;
+      padding-top: max(10px, env(safe-area-inset-top));
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    body.light #header { border-bottom-color: var(--border-base); }
+
+    @keyframes titleGlow {
+      0%, 100% { text-shadow: 0 0 4px #f0e04033, 0 0 10px #f0e04022; }
+      50%       { text-shadow: 0 0 20px #f0e040ff, 0 0 40px #f0e040cc, 0 0 72px #f0e04088, 0 0 100px #f0e04044; }
+    }
+    #app-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent-yellow);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    body:not(.light) #app-title { animation: titleGlow 2.4s ease-in-out infinite; }
+    #header-spacer { flex: 1; }
+
+    .btn-header {
+      background: transparent;
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1;
+      min-width: 40px;
+      height: 40px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    body.light .btn-header { color: #4a4e60; }
+    @keyframes pinkPulse {
+      0%, 100% { box-shadow: 0 0 0px #e9456000; border-color: #1e3a5a; color: #5a7a9a; }
+      50%       { box-shadow: 0 0 8px #e9456099; border-color: #e94560; color: #e94560; }
+    }
+    @media (hover: hover) {
+      body:not(.light) .btn-header:hover { animation: pinkPulse 0.8s ease-in-out infinite; }
+      body.light .btn-header:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+    }
+    .btn-header:active { border-color: var(--accent-pink); color: var(--accent-pink); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-header.syncing { animation: spin 1s linear infinite; }
+
+    /* ===== 再連携バナー ===== */
+    #reauth-banner {
+      display: none;
+      background: #4a1420;
+      color: #ffb0c0;
+      padding: 10px 14px;
+      font-size: 13px;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    body.light #reauth-banner { background: #fce4ea; color: #a02040; }
+    #reauth-banner.visible { display: flex; }
+    #reauth-banner button {
+      background: var(--accent-pink);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ===== 画面切り替え ===== */
+    #main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .screen { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .screen.visible { display: flex; }
+
+    /* デスクトップでは中央寄せ */
+    @media (min-width: 900px) {
+      .screen { width: 100%; max-width: 780px; margin: 0 auto; }
+      #header { justify-content: center; }
+      #header-inner { width: 100%; max-width: 780px; display: flex; align-items: center; gap: 8px; }
+    }
+    #header-inner { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+
+    /* ===== 一覧画面 ===== */
+    #tag-filter {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 10px 14px;
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    #tag-filter::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-base);
+      border-radius: 14px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      padding: 6px 12px;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .filter-chip.active {
+      background: var(--bg-deep);
+      border-color: var(--accent-pink);
+      color: var(--text-heading);
+      box-shadow: 0 0 8px #e9456040;
+    }
+    body.light .filter-chip.active { background: #f7dce2; color: #a02040; }
+
+    #entry-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 2px 14px;
+      padding-bottom: calc(96px + env(safe-area-inset-bottom));
+      overscroll-behavior: contain;
+    }
+    .entry-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-base);
+      border-left: 3px solid transparent;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .entry-card:active { border-left-color: var(--accent-pink); }
+    @media (hover: hover) {
+      .entry-card:hover { border-color: var(--border-deep); border-left-color: var(--accent-pink); }
+    }
+    @keyframes selectFlash {
+      0%   { background: #e9456030; box-shadow: inset 0 0 30px #e9456040; }
+      100% { background: var(--bg-panel); box-shadow: none; }
+    }
+    body:not(.light) .entry-card.flash { animation: selectFlash 0.35s ease-out forwards; }
+    .entry-card.today { border-left-color: var(--accent-yellow); }
+    .entry-card-date {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-heading);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .today-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent-yellow);
+      border: 1px solid var(--accent-yellow);
+      border-radius: 3px;
+      padding: 1px 5px;
+      letter-spacing: 0.05em;
+    }
+    .entry-card-excerpt {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .entry-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .tag-badge {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      border-radius: 3px;
+      padding: 2px 7px;
+      font-size: 11px;
+      box-shadow: 0 0 6px #f0e04022;
+    }
+    body.light .tag-badge { box-shadow: none; }
+    @keyframes tagPulse {
+      0%, 100% { box-shadow: 0 0 4px #f0e04018; }
+      50%       { box-shadow: 0 0 10px #f0e04077, 0 0 18px #f0e04033; }
+    }
+
+    /* 空状態 */
+    #empty-state {
+      display: none;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.9;
+    }
+    #empty-state.visible { display: block; }
+    #empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    #empty-state button {
+      margin-top: 16px;
+      background: var(--bg-deep);
+      border: 1px solid var(--accent-pink);
+      border-radius: 8px;
+      color: var(--text-heading);
+      font-size: 14px;
+      padding: 12px 22px;
+      cursor: pointer;
+    }
+    body.light #empty-state button { background: #f7dce2; color: #a02040; }
+
+    #sync-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 4px 0 0;
+      min-height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* FAB（今日の日記） */
+    #fab {
+      position: fixed;
+      right: max(18px, env(safe-area-inset-right));
+      bottom: max(20px, calc(12px + env(safe-area-inset-bottom)));
+      background: var(--accent-pink);
+      color: #fff;
+      border: none;
+      border-radius: 28px;
+      height: 52px;
+      padding: 0 22px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 18px #e9456066;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+    #fab.visible { display: flex; }
+    #fab:active { transform: scale(0.97); }
+    @media (min-width: 900px) {
+      #fab { right: calc(50% - 390px + 18px); }
+    }
+
+    /* ===== 記事画面共通（詳細・編集） ===== */
+    .screen-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-base);
+      flex-shrink: 0;
+    }
+    .screen-bar-title {
+      flex: 1;
+      min-width: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-heading);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-bar {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-base);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      height: 44px;
+      min-width: 44px;
+      padding: 0 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    body.light .btn-bar { background: #fff; }
+    .btn-bar.primary {
+      background: var(--accent-pink);
+      border-color: var(--accent-pink);
+      color: #fff;
+      font-weight: 600;
+    }
+    body.light .btn-bar.primary { background: var(--accent-pink); color: #fff; }
+    .btn-bar:disabled { opacity: 0.5; cursor: default; }
+
+    /* ===== 詳細画面 ===== */
+    #detail-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: calc(30px + env(safe-area-inset-bottom));
+      overscroll-behavior: contain;
+    }
+    #detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 0.5px solid #f0e04030;
+    }
+    body.light #detail-meta { border-bottom-color: var(--border-base); }
+    body:not(.light) #detail-meta .tag-badge { animation: tagPulse 3.5s ease-in-out infinite; }
+    .meta-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      border: 1px solid var(--border-base);
+      border-radius: 3px;
+      padding: 2px 7px;
+    }
+    .meta-author { font-size: 12px; color: var(--text-muted); }
+
+    /* Markdown 本文 */
+    #detail-body { font-size: 15px; line-height: 1.9; word-break: break-word; }
+    #detail-body h1, #detail-body h2, #detail-body h3, #detail-body h4 {
+      color: var(--text-heading);
+      margin: 1.4em 0 0.5em;
+      line-height: 1.5;
+    }
+    #detail-body h1:first-child, #detail-body h2:first-child, #detail-body h3:first-child { margin-top: 0; }
+    #detail-body h1 { font-size: 1.4em; }
+    #detail-body h2 { font-size: 1.25em; border-bottom: 0.5px solid #f0e04030; padding-bottom: 6px; color: var(--accent-yellow); }
+    body.light #detail-body h2 { border-bottom-color: var(--border-base); }
+    #detail-body h3 { font-size: 1.1em; }
+    #detail-body p { margin: 0.7em 0; }
+    #detail-body ul, #detail-body ol { padding-left: 1.6em; margin: 0.7em 0; }
+    #detail-body a { color: var(--accent-cyan); }
+    #detail-body a:hover { color: var(--accent-pink); }
+    #detail-body img { max-width: 100%; height: auto; border-radius: 6px; }
+    #detail-body hr { border: none; border-top: 0.5px solid #f0e04030; margin: 1.4em 0; }
+    body.light #detail-body hr { border-top-color: var(--border-base); }
+    #detail-body code {
+      background: var(--tag-bg);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 0.9em;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      color: var(--tag-text);
+      box-shadow: 0 0 4px #f0e04020;
+    }
+    body.light #detail-body code { box-shadow: none; }
+    #detail-body pre {
+      background: var(--bg-deeper);
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      margin: 0.9em 0;
+    }
+    #detail-body pre code { background: none; padding: 0; color: #d0e0f0; box-shadow: none; }
+    #detail-body blockquote {
+      border-left: 3px solid var(--accent-pink);
+      padding: 4px 0 4px 14px;
+      color: var(--text-muted);
+      font-style: italic;
+      margin: 0.9em 0;
+    }
+    #detail-body table { border-collapse: collapse; width: 100%; margin: 0.9em 0; display: block; overflow-x: auto; }
+    #detail-body th { background: var(--bg-deep); color: var(--text-primary); padding: 7px 12px; border: 1px solid var(--border-base); text-align: left; }
+    #detail-body td { border: 1px solid var(--border-base); padding: 7px 12px; }
+
+    /* ===== 編集画面 ===== */
+    #edit-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-base);
+      flex-shrink: 0;
+    }
+    .chip-input-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      border-radius: 3px;
+      padding: 4px 4px 4px 8px;
+      font-size: 12px;
+    }
+    .chip button {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 4px;
+      opacity: 0.7;
+    }
+    .chip button:hover { opacity: 1; }
+    .chip-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 13px;
+      min-width: 90px;
+      flex: 1;
+      height: 28px;
+    }
+    .chip-input::placeholder { color: var(--text-muted); }
+
+    #edit-body {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 14px;
+      padding-bottom: calc(14px + env(safe-area-inset-bottom));
+      font-size: 15px;
+      line-height: 1.8;
+      font-family: inherit;
+    }
+    body:not(.light) #edit-body:focus { box-shadow: inset 0 0 0 1px #e9456055, inset 0 0 16px #e9456020; transition: box-shadow 0.3s; }
+    #edit-status { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ===== ダイアログ共通 ===== */
+    dialog {
+      width: min(92vw, 480px);
+      max-height: 85dvh;
+      background: var(--bg-panel);
+      color: var(--text-primary);
+      border: 0.5px solid #1a3a6e;
+      border-radius: 10px;
+      box-shadow: 0 0 60px #e9456022, 0 0 120px #e9456010;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin: auto;
+    }
+    dialog:not([open]) { display: none; }
+    body.light dialog { border-color: var(--border-base); }
+    dialog::backdrop { background: rgba(6, 8, 20, 0.65); }
+    .dialog-header {
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent-yellow);
+      border-bottom: 0.5px solid #f0e04030;
+      flex-shrink: 0;
+      letter-spacing: 0.04em;
+    }
+    body.light .dialog-header { border-bottom-color: var(--border-base); }
+    .dialog-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px;
+      overscroll-behavior: contain;
+    }
+    .dialog-body:focus { outline: none; }  /* showModal がスクロール領域を自動フォーカスするため */
+    .dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border-base);
+      flex-shrink: 0;
+    }
+
+    /* 設定フォーム */
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #f0e04099;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 18px 0 6px;
+    }
+    body.light .form-label { color: #8a7a20; }
+    .form-label:first-child { margin-top: 0; }
+    .form-input {
+      width: 100%;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-deep);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 11px 12px;
+    }
+    body.light .form-input { background: #fff; }
+    .form-input:focus { outline: none; border-color: var(--accent-pink); }
+    .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.7; }
+    .form-hint code {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 10px;
+      word-break: break-all;
+    }
+    .form-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-form {
+      background: var(--bg-deep);
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      height: 40px;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+    body.light .btn-form { background: #fff; }
+    .btn-form.accent { border-color: var(--accent-pink); color: var(--accent-pink); }
+    .btn-form:disabled { opacity: 0.5; cursor: default; }
+    #auth-status { font-size: 13px; margin-top: 8px; }
+    #auth-status.ok { color: #40d080; }
+    #auth-status.ng { color: var(--accent-pink); }
+    .settings-chip-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-deep);
+      border-radius: 6px;
+      padding: 8px;
+    }
+    body.light .settings-chip-box { background: #fff; }
+    #app-version-line { font-size: 11px; color: var(--text-muted); margin-top: 18px; }
+
+    /* フォルダピッカー */
+    #picker-breadcrumb {
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-base);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    #picker-breadcrumb button {
+      background: none;
+      border: none;
+      color: var(--accent-cyan);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+    #picker-breadcrumb .crumb-sep { color: var(--text-muted); padding: 4px 0; }
+    #picker-list { list-style: none; }
+    #picker-list li { border-bottom: 1px solid var(--border-base); }
+    #picker-list button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 14px;
+      padding: 13px 8px;
+      cursor: pointer;
+    }
+    @media (hover: hover) { #picker-list button:hover { background: var(--bg-deep); } }
+    #picker-empty { font-size: 13px; color: var(--text-muted); padding: 20px 8px; text-align: center; }
+
+    /* ===== トースト ===== */
+    #toast {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: max(88px, calc(80px + env(safe-area-inset-bottom)));
+      background: var(--bg-deeper);
+      color: var(--text-primary);
+      border: 1px solid var(--border-deep);
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 13px;
+      max-width: 88vw;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    body.light #toast { background: #fff; }
+    #toast.visible { opacity: 1; }
+    #toast.error { border-color: var(--accent-pink); color: #ffb0c0; }
+    body.light #toast.error { color: #a02040; }
+  </style>
+</head>
+<body>
+  <header id="header">
+    <div id="header-inner">
+      <h1 id="app-title">Diary</h1>
+      <div id="header-spacer"></div>
+      <button type="button" class="btn-header" id="btn-sync" aria-label="再読み込み">🔄</button>
+      <button type="button" class="btn-header" id="btn-theme" aria-label="テーマ切り替え">🌙</button>
+      <button type="button" class="btn-header" id="btn-settings" aria-label="設定">⚙️</button>
+    </div>
+  </header>
+
+  <div id="reauth-banner" role="alert">
+    <span>Dropbox 連携の有効期限が切れました。設定から再連携してください。</span>
+    <button type="button" id="btn-reauth">設定を開く</button>
+  </div>
+
+  <main id="main">
+    <!-- ===== 一覧画面 ===== -->
+    <section class="screen visible" id="list-screen" aria-label="日記一覧">
+      <div id="sync-status" aria-live="polite"></div>
+      <div id="tag-filter"></div>
+      <div id="entry-list">
+        <div id="empty-state"></div>
+      </div>
+    </section>
+
+    <!-- ===== 詳細画面 ===== -->
+    <section class="screen" id="detail-screen" aria-label="日記閲覧">
+      <div class="screen-bar">
+        <button type="button" class="btn-bar" id="btn-detail-back" aria-label="戻る">←</button>
+        <div class="screen-bar-title" id="detail-title"></div>
+        <button type="button" class="btn-bar primary" id="btn-detail-edit">✏️ 編集</button>
+      </div>
+      <div id="detail-scroll">
+        <div id="detail-meta"></div>
+        <article id="detail-body"></article>
+      </div>
+    </section>
+
+    <!-- ===== 編集画面 ===== -->
+    <section class="screen" id="edit-screen" aria-label="日記編集">
+      <div class="screen-bar">
+        <button type="button" class="btn-bar" id="btn-edit-back" aria-label="編集をやめる">←</button>
+        <div class="screen-bar-title" id="edit-title"></div>
+        <span id="edit-status" aria-live="polite"></span>
+        <button type="button" class="btn-bar primary" id="btn-save">保存</button>
+      </div>
+      <div id="edit-tags-row">
+        <div class="chip-input-wrap" id="edit-tags-box">
+          <input type="text" class="chip-input" id="edit-tags-input" placeholder="タグを追加 (Enter)" autocomplete="off" aria-label="タグを追加">
+        </div>
+      </div>
+      <textarea id="edit-body" placeholder="今日の出来事や考えたことを書く…" aria-label="日記本文"></textarea>
+    </section>
+  </main>
+
+  <button type="button" id="fab" class="visible">＋ 今日の日記</button>
+
+  <!-- ===== 設定ダイアログ ===== -->
+  <dialog id="settings-dialog" aria-label="設定">
+    <div class="dialog-header">設定</div>
+    <div class="dialog-body">
+      <label class="form-label" for="input-app-key">Dropbox App Key</label>
+      <input type="text" class="form-input" id="input-app-key" placeholder="例: abcd1234efgh567" autocomplete="off" spellcheck="false">
+      <div class="form-hint">
+        Dropbox App Console で作成した自分用アプリの App Key。作成手順は取扱説明書を参照。<br>
+        Redirect URI にはこの URL を登録:<br><code id="redirect-uri-display"></code>
+        <button type="button" class="btn-form" id="btn-copy-redirect" style="height: 30px; font-size: 11px; margin-top: 5px;">URI をコピー</button>
+      </div>
+      <div class="form-row">
+        <button type="button" class="btn-form accent" id="btn-auth">Dropbox と連携する</button>
+        <button type="button" class="btn-form" id="btn-unlink">連携解除</button>
+      </div>
+      <div id="auth-status" aria-live="polite"></div>
+
+      <label class="form-label" for="input-folder">日記フォルダ</label>
+      <input type="text" class="form-input" id="input-folder" placeholder="/07_memo/Cursor Vault/01_コラム・執筆/日記" autocomplete="off" spellcheck="false">
+      <div class="form-row">
+        <button type="button" class="btn-form" id="btn-browse">フォルダを参照…</button>
+      </div>
+      <div class="form-hint">Dropbox 内のパスを直接入力するか、「フォルダを参照」で選択。ここに YYYY-MM-DD.md を作成します。</div>
+
+      <label class="form-label" for="input-author">author（署名）</label>
+      <input type="text" class="form-input" id="input-author" placeholder="kiyohito" autocomplete="off">
+
+      <span class="form-label">既定のタグ（新規作成時に自動で付くタグ）</span>
+      <div class="settings-chip-box chip-input-wrap" id="settings-tags-box">
+        <input type="text" class="chip-input" id="settings-tags-input" placeholder="タグを追加 (Enter)" autocomplete="off" aria-label="既定のタグを追加">
+      </div>
+
+      <div id="app-version-line"></div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-settings-close">閉じる</button>
+      <button type="button" class="btn-form accent" id="btn-settings-save">保存</button>
+    </div>
+  </dialog>
+
+  <!-- ===== フォルダピッカー ===== -->
+  <dialog id="picker-dialog" aria-label="フォルダを選択">
+    <div class="dialog-header">フォルダを選択</div>
+    <div id="picker-breadcrumb"></div>
+    <div class="dialog-body">
+      <ul id="picker-list"></ul>
+      <div id="picker-empty" style="display: none;"></div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-picker-cancel">キャンセル</button>
+      <button type="button" class="btn-form accent" id="btn-picker-select">このフォルダを選択</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 競合ダイアログ ===== -->
+  <dialog id="conflict-dialog" aria-label="保存の競合">
+    <div class="dialog-header">保存の競合</div>
+    <div class="dialog-body">
+      <p style="font-size: 14px; line-height: 1.8;">
+        このファイルは Dropbox 側（Obsidian や別の端末）で変更されています。<br>
+        どちらを残すか選んでください。
+      </p>
+      <div class="form-hint" style="margin-top: 10px;">
+        「Dropbox 側を確認」を選ぶと最新の内容を表示します。今の編集内容は下書きとして保持され、もう一度編集を開いたときに復元できます。
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-conflict-remote">Dropbox 側を確認</button>
+      <button type="button" class="btn-form accent" id="btn-conflict-overwrite">自分の編集で上書き</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 下書き復元ダイアログ ===== -->
+  <dialog id="draft-dialog" aria-label="下書きの復元">
+    <div class="dialog-header">未保存の下書き</div>
+    <div class="dialog-body">
+      <p style="font-size: 14px; line-height: 1.8;" id="draft-dialog-text"></p>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-draft-discard">破棄</button>
+      <button type="button" class="btn-form accent" id="btn-draft-restore">復元して編集</button>
+    </div>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+
+    // ===== 定数 =====
+    const APP_VERSION = '2026-07-23.initial';
+    const KEY_APP_KEY = 'diary_dbx_app_key';
+    const KEY_TOKENS = 'diary_dbx_tokens';
+    const KEY_FOLDER = 'diary_folder_path';
+    const KEY_AUTHOR = 'diary_author';
+    const KEY_DEFAULT_TAGS = 'diary_default_tags';
+    const KEY_THEME = 'diary_theme';
+    const KEY_CACHE = 'diary_cache';
+    const KEY_DRAFT = 'diary_draft';
+    const KEY_PKCE = 'diary_pkce';
+    const DEFAULT_AUTHOR = 'kiyohito';
+    const DEFAULT_TAGS = ['日記'];
+    const DIARY_FILE_RE = /^(\d{4}-\d{2}-\d{2})\.md$/i;
+    const DOWNLOAD_CONCURRENCY = 4;
+    const DRAFT_DEBOUNCE_MS = 1000;
+    const AUTH_URL = 'https://www.dropbox.com/oauth2/authorize';
+    const TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
+    const API_BASE = 'https://api.dropboxapi.com/2/';
+    const CONTENT_BASE = 'https://content.dropboxapi.com/2/';
+
+    if (typeof marked !== 'undefined') marked.use({ breaks: true });
+
+    // ===== 小ユーティリティ =====
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function safeLoadJson(key, validate) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return null;
+        const value = JSON.parse(raw);
+        return validate ? validate(value) : value;
+      } catch (err) {
+        console.warn(`localStorage の読み込みに失敗 (${key})`, err);
+        return null;
+      }
+    }
+
+    function safeSaveJson(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (err) {
+        console.warn(`localStorage への保存に失敗 (${key})`, err);
+        return false;
+      }
+    }
+
+    function todayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
+    function formatDateJa(dateStr) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+      if (!m) return dateStr || '';
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (isNaN(d.getTime())) return dateStr;
+      return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日 (${WEEKDAYS_JA[d.getDay()]})`;
+    }
+
+    function makeExcerpt(body) {
+      const text = String(body || '')
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/^>\s?/gm, '')
+        .replace(/[*_`~]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return text.slice(0, 120);
+    }
+
+    let toastTimer = null;
+    function showToast(message, type) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.className = type === 'error' ? 'visible error' : 'visible';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.className = ''; }, type === 'error' ? 5000 : 2600);
+    }
+
+    // ===== 設定・状態 =====
+    function normalizeFolderPath(value) {
+      let p = String(value ?? '').trim();
+      if (!p || p === '/') return '';
+      if (!p.startsWith('/')) p = '/' + p;
+      return p.replace(/\/+$/, '');
+    }
+
+    function normalizeTags(value) {
+      if (!Array.isArray(value)) return null;
+      const tags = [];
+      for (const t of value) {
+        if (typeof t !== 'string') continue;
+        const s = t.trim();
+        if (s && !tags.includes(s)) tags.push(s);
+      }
+      return tags;
+    }
+
+    const settings = {
+      appKey: (() => { const v = safeLoadJson(KEY_APP_KEY); return typeof v === 'string' ? v.trim() : ''; })(),
+      folderPath: (() => { const v = safeLoadJson(KEY_FOLDER); return typeof v === 'string' ? normalizeFolderPath(v) : ''; })(),
+      author: (() => { const v = safeLoadJson(KEY_AUTHOR); return (typeof v === 'string' && v.trim()) ? v.trim() : DEFAULT_AUTHOR; })(),
+      defaultTags: normalizeTags(safeLoadJson(KEY_DEFAULT_TAGS)) || DEFAULT_TAGS.slice()
+    };
+
+    let tokens = safeLoadJson(KEY_TOKENS, v => {
+      if (!v || typeof v !== 'object') return null;
+      if (typeof v.refreshToken !== 'string' || !v.refreshToken) return null;
+      return {
+        accessToken: typeof v.accessToken === 'string' ? v.accessToken : '',
+        refreshToken: v.refreshToken,
+        expiresAt: Number(v.expiresAt) || 0
+      };
+    });
+
+    let cache = safeLoadJson(KEY_CACHE, v => (v && typeof v === 'object' && !Array.isArray(v)) ? v : null) || {};
+
+    let entries = [];       // { name, path, key, date, rev, meta, extraLines, body }
+    let activeTag = null;
+    let currentKey = null;  // 詳細表示中エントリの key (path_lower)
+    let edit = null;        // 編集状態
+    let syncing = false;
+    let saving = false;
+    let navDepth = 0;
+    let screen = 'list';
+
+    function isLinked() { return !!(tokens && tokens.refreshToken); }
+    function saveTokens() { safeSaveJson(KEY_TOKENS, tokens); }
+    function clearTokens() { tokens = null; try { localStorage.removeItem(KEY_TOKENS); } catch { /* 失敗しても表示状態には影響しない */ } }
+    function saveCache() {
+      if (!safeSaveJson(KEY_CACHE, cache)) {
+        showToast('キャッシュの保存に失敗しました（容量不足の可能性）', 'error');
+      }
+    }
+
+    // ===== フロントマター parse / serialize =====
+    function stripQuotes(value) {
+      const s = String(value ?? '').trim();
+      if (s.length >= 2 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+        return s.slice(1, -1).replace(/\\"/g, '"');
+      }
+      return s;
+    }
+
+    function quoteYamlIfNeeded(value) {
+      const s = String(value ?? '');
+      if (s === '') return '""';
+      if (/[:#\[\]{}&*!|>'"%@`,]|^\s|\s$|^-/.test(s)) {
+        return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+      }
+      return s;
+    }
+
+    // 既存 Obsidian ファイルの形式（created / tags リスト / author）に限定した簡易パーサ。
+    // 未知キーは raw 行のまま extraLines に保持し、書き戻し時にそのまま再出力する。
+    function parseFrontmatter(text) {
+      const src = String(text ?? '').replace(/^\uFEFF/, '');
+      const lines = src.split(/\r?\n/);
+      if (lines[0] !== '---') return { meta: null, extraLines: [], body: src };
+      let endIdx = -1;
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim() === '---') { endIdx = i; break; }
+      }
+      if (endIdx < 0) return { meta: null, extraLines: [], body: src };
+
+      const fmLines = lines.slice(1, endIdx);
+      const meta = { created: '', tags: [], author: '' };
+      const extraLines = [];
+      let i = 0;
+      while (i < fmLines.length) {
+        const line = fmLines[i];
+        const keyMatch = /^([A-Za-z0-9_-]+):(.*)$/.exec(line);
+        if (!keyMatch) { extraLines.push(line); i++; continue; }
+        const key = keyMatch[1];
+        const rest = keyMatch[2].trim();
+        if (key === 'created' || key === 'author') {
+          meta[key] = stripQuotes(rest);
+          i++;
+          continue;
+        }
+        if (key === 'tags') {
+          if (rest.startsWith('[')) {
+            meta.tags = rest.replace(/^\[/, '').replace(/\]$/, '')
+              .split(',').map(s => stripQuotes(s)).filter(Boolean);
+            i++;
+            continue;
+          }
+          i++;
+          while (i < fmLines.length && /^\s+-\s*\S?/.test(fmLines[i])) {
+            const item = stripQuotes(fmLines[i].replace(/^\s+-\s*/, ''));
+            if (item) meta.tags.push(item);
+            i++;
+          }
+          continue;
+        }
+        // 未知キー: 行とそれに続くインデント行（ネストした値）をそのまま保持
+        extraLines.push(line);
+        i++;
+        while (i < fmLines.length && /^\s/.test(fmLines[i]) && fmLines[i].trim() !== '') {
+          extraLines.push(fmLines[i]);
+          i++;
+        }
+      }
+      const body = lines.slice(endIdx + 1).join('\n').replace(/^\n/, '');
+      return { meta, extraLines, body };
+    }
+
+    function serializeFrontmatter(meta, extraLines, body) {
+      const lines = ['---'];
+      lines.push('created: ' + (meta.created || todayStr()));
+      const tags = normalizeTags(meta.tags) || [];
+      if (tags.length === 0) {
+        lines.push('tags: []');
+      } else {
+        lines.push('tags:');
+        for (const t of tags) lines.push('  - ' + quoteYamlIfNeeded(t));
+      }
+      lines.push('author: ' + quoteYamlIfNeeded(meta.author || DEFAULT_AUTHOR));
+      for (const l of (extraLines || [])) lines.push(l);
+      lines.push('---');
+      return lines.join('\n') + '\n\n' + String(body || '').replace(/^\n+/, '');
+    }
+
+    // ===== Dropbox OAuth (PKCE) =====
+    function getRedirectUri() { return location.origin + location.pathname; }
+
+    function base64UrlEncode(bytes) {
+      let s = '';
+      for (const b of bytes) s += String.fromCharCode(b);
+      return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function startDropboxAuth() {
+      if (!settings.appKey) {
+        showToast('先に App Key を入力して保存してください', 'error');
+        return;
+      }
+      if (!window.crypto || !crypto.subtle) {
+        showToast('この環境では認証に必要な暗号 API が使えません。HTTPS または localhost で開いてください。', 'error');
+        return;
+      }
+      const verifier = base64UrlEncode(crypto.getRandomValues(new Uint8Array(64)));
+      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+      const challenge = base64UrlEncode(digest);
+      const state = base64UrlEncode(crypto.getRandomValues(new Uint8Array(16)));
+      try {
+        sessionStorage.setItem(KEY_PKCE, JSON.stringify({ verifier, state }));
+      } catch (err) {
+        console.warn('sessionStorage への保存に失敗', err);
+        showToast('認証情報を一時保存できませんでした。ブラウザの設定を確認してください。', 'error');
+        return;
+      }
+      const params = new URLSearchParams({
+        client_id: settings.appKey,
+        response_type: 'code',
+        redirect_uri: getRedirectUri(),
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        token_access_type: 'offline',
+        state
+      });
+      location.href = AUTH_URL + '?' + params.toString();
+    }
+
+    // 認可コールバック処理。連携が成立したら true を返す。
+    async function handleAuthCallback() {
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const authError = params.get('error');
+      if (!code && !authError) return false;
+
+      let saved = null;
+      try { saved = JSON.parse(sessionStorage.getItem(KEY_PKCE)); } catch { saved = null; }
+      try { sessionStorage.removeItem(KEY_PKCE); } catch { /* 後始末失敗は無害 */ }
+      history.replaceState(null, '', location.pathname);
+
+      if (authError) {
+        showToast('Dropbox 連携がキャンセルされました: ' + (params.get('error_description') || authError), 'error');
+        return false;
+      }
+      if (!saved || !saved.verifier || params.get('state') !== saved.state) {
+        showToast('認証状態を確認できませんでした。もう一度連携してください。', 'error');
+        return false;
+      }
+      try {
+        const res = await fetch(TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code,
+            grant_type: 'authorization_code',
+            code_verifier: saved.verifier,
+            client_id: settings.appKey,
+            redirect_uri: getRedirectUri()
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        if (!res.ok) {
+          let detail = '';
+          try { const j = await res.json(); detail = j.error_description || j.error || ''; } catch { /* JSON でない応答 */ }
+          throw new Error(detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (typeof data.access_token !== 'string' || typeof data.refresh_token !== 'string') {
+          throw new Error('トークン応答の形式が不正です');
+        }
+        tokens = {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          expiresAt: Date.now() + (Number(data.expires_in) || 14400) * 1000
+        };
+        saveTokens();
+        hideReauthBanner();
+        showToast('Dropbox と連携しました');
+        return true;
+      } catch (err) {
+        console.warn('トークン交換に失敗', err);
+        showToast('Dropbox 連携に失敗しました: ' + err.message, 'error');
+        return false;
+      }
+    }
+
+    let refreshPromise = null;
+    async function ensureAccessToken(force) {
+      if (!isLinked()) throw new Error('Dropbox と未連携です。設定から連携してください。');
+      if (!force && tokens.accessToken && Date.now() < tokens.expiresAt - 60 * 1000) {
+        return tokens.accessToken;
+      }
+      if (!refreshPromise) {
+        refreshPromise = (async () => {
+          try {
+            const res = await fetch(TOKEN_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: tokens.refreshToken,
+                client_id: settings.appKey
+              }),
+              signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) {
+              let detail = '';
+              try { const j = await res.json(); detail = j.error_description || j.error || ''; } catch { /* JSON でない応答 */ }
+              if (res.status === 400 || res.status === 401) {
+                clearTokens();
+                showReauthBanner();
+                throw new Error('Dropbox 連携の有効期限が切れました。設定から再連携してください。');
+              }
+              throw new Error('トークン更新に失敗しました: ' + (detail || `HTTP ${res.status}`));
+            }
+            const data = await res.json();
+            tokens = {
+              ...tokens,
+              accessToken: String(data.access_token || ''),
+              expiresAt: Date.now() + (Number(data.expires_in) || 14400) * 1000
+            };
+            saveTokens();
+            return tokens.accessToken;
+          } finally {
+            refreshPromise = null;
+          }
+        })();
+      }
+      return refreshPromise;
+    }
+
+    async function revokeToken() {
+      try {
+        await dbxFetch(API_BASE + 'auth/token/revoke', { method: 'POST' });
+      } catch (err) {
+        console.warn('トークン失効 API の呼び出しに失敗（ローカルの連携情報は削除します）', err);
+      }
+    }
+
+    // ===== Dropbox API 呼び出し =====
+    // Dropbox-API-Arg は HTTP ヘッダーのため ASCII 限定。日本語パスは \uXXXX にエスケープする。
+    function httpHeaderSafeJson(obj) {
+      return JSON.stringify(obj).replace(/[\u007f-\uffff]/g,
+        c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+    }
+
+    async function dbxError(res, context) {
+      let summary = '';
+      let message = '';
+      try {
+        const text = await res.text();
+        try {
+          const j = JSON.parse(text);
+          summary = String(j.error_summary || '');
+          message = String(j.user_message || summary);
+        } catch { message = text.slice(0, 200); }
+      } catch { /* ボディなし */ }
+      const err = new Error(`Dropbox API エラー (${context}): ${message || 'HTTP ' + res.status}`);
+      err.status = res.status;
+      err.summary = summary;
+      return err;
+    }
+
+    async function dbxFetch(url, options = {}, attempt = 0) {
+      const token = await ensureAccessToken(attempt > 0);
+      const headers = { ...(options.headers || {}), 'Authorization': 'Bearer ' + token };
+      let res;
+      try {
+        res = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(30000) });
+      } catch (err) {
+        throw new Error('Dropbox に接続できませんでした。ネットワークを確認してください。', { cause: err });
+      }
+      if (res.status === 401 && attempt === 0) return dbxFetch(url, options, 1);
+      if (res.status === 429 && attempt === 0) {
+        const waitSec = Math.min(Number(res.headers.get('Retry-After')) || 3, 30);
+        await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
+        return dbxFetch(url, options, 1);
+      }
+      return res;
+    }
+
+    async function dbxRpc(endpoint, body) {
+      const res = await dbxFetch(API_BASE + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw await dbxError(res, endpoint);
+      return res.json();
+    }
+
+    async function dbxDownload(path) {
+      const res = await dbxFetch(CONTENT_BASE + 'files/download', {
+        method: 'POST',
+        headers: { 'Dropbox-API-Arg': httpHeaderSafeJson({ path }) }
+      });
+      if (!res.ok) throw await dbxError(res, 'files/download');
+      let meta = {};
+      try { meta = JSON.parse(res.headers.get('Dropbox-API-Result') || '{}'); } catch { /* メタなしでも本文は使える */ }
+      return {
+        content: await res.text(),
+        rev: String(meta.rev || ''),
+        serverModified: String(meta.server_modified || '')
+      };
+    }
+
+    async function dbxUpload(path, content, mode) {
+      const res = await dbxFetch(CONTENT_BASE + 'files/upload', {
+        method: 'POST',
+        headers: {
+          'Dropbox-API-Arg': httpHeaderSafeJson({ path, mode, autorename: false, mute: true }),
+          'Content-Type': 'application/octet-stream'
+        },
+        body: new Blob([content], { type: 'application/octet-stream' })
+      });
+      if (!res.ok) throw await dbxError(res, 'files/upload');
+      return res.json();
+    }
+
+    async function listFolderAll(path) {
+      let res = await dbxRpc('files/list_folder', { path: path || '', limit: 2000 });
+      let items = res.entries || [];
+      while (res.has_more) {
+        res = await dbxRpc('files/list_folder/continue', { cursor: res.cursor });
+        items = items.concat(res.entries || []);
+      }
+      return items;
+    }
+
+    async function mapLimit(items, limit, fn) {
+      const results = new Array(items.length);
+      let next = 0;
+      async function worker() {
+        while (next < items.length) {
+          const idx = next++;
+          try {
+            results[idx] = { ok: true, value: await fn(items[idx], idx) };
+          } catch (err) {
+            results[idx] = { ok: false, error: err };
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(limit, items.length) || 1 }, worker));
+      return results;
+    }
+
+    // ===== 同期 =====
+    function buildEntry(fileMeta, content) {
+      const m = DIARY_FILE_RE.exec(fileMeta.name);
+      const parsed = parseFrontmatter(content);
+      return {
+        name: fileMeta.name,
+        path: fileMeta.path_display || fileMeta.path_lower,
+        key: fileMeta.path_lower,
+        date: m ? m[1] : '',
+        rev: String(fileMeta.rev || ''),
+        meta: parsed.meta,
+        extraLines: parsed.extraLines,
+        body: parsed.body
+      };
+    }
+
+    async function syncEntries(options = {}) {
+      if (syncing) return;
+      if (!isLinked() || settings.folderPath === null) { renderAll(); return; }
+      if (!settings.folderPath && settings.folderPath !== '') { renderAll(); return; }
+      syncing = true;
+      setSyncStatus('同期中…');
+      document.getElementById('btn-sync').classList.add('syncing');
+      try {
+        const items = await listFolderAll(settings.folderPath);
+        const files = items.filter(it => it['.tag'] === 'file' && DIARY_FILE_RE.test(it.name));
+        const results = await mapLimit(files, DOWNLOAD_CONCURRENCY, async file => {
+          const cached = cache[file.path_lower];
+          if (cached && cached.rev === file.rev && typeof cached.content === 'string') {
+            return buildEntry(file, cached.content);
+          }
+          const dl = await dbxDownload(file.path_lower);
+          cache[file.path_lower] = { rev: dl.rev || file.rev, content: dl.content };
+          return buildEntry(file, dl.content);
+        });
+
+        const nextEntries = [];
+        let failed = 0;
+        for (const r of results) {
+          if (r.ok) nextEntries.push(r.value); else { failed++; console.warn('日記ファイルの取得に失敗', r.error); }
+        }
+        nextEntries.sort((a, b) => b.date.localeCompare(a.date));
+        entries = nextEntries;
+
+        // キャッシュを現存ファイルのみに整理
+        const liveKeys = new Set(files.map(f => f.path_lower));
+        for (const key of Object.keys(cache)) {
+          if (!liveKeys.has(key)) delete cache[key];
+        }
+        saveCache();
+
+        if (failed > 0) {
+          showToast(`${failed} 件のファイルを読み込めませんでした`, 'error');
+        } else if (!options.silent) {
+          setSyncStatus(`${entries.length} 件 / 最終同期 ${new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`);
+        }
+      } catch (err) {
+        console.warn('同期に失敗', err);
+        if (err.summary && err.summary.includes('not_found')) {
+          showToast('日記フォルダが見つかりません。設定のフォルダパスを確認してください。', 'error');
+        } else {
+          showToast(err.message || '同期に失敗しました', 'error');
+        }
+        setSyncStatus('');
+      } finally {
+        syncing = false;
+        document.getElementById('btn-sync').classList.remove('syncing');
+        renderAll();
+      }
+    }
+
+    function setSyncStatus(text) {
+      document.getElementById('sync-status').textContent = text;
+    }
+
+    // ===== 画面遷移 =====
+    function updateScreens() {
+      document.getElementById('list-screen').classList.toggle('visible', screen === 'list');
+      document.getElementById('detail-screen').classList.toggle('visible', screen === 'detail');
+      document.getElementById('edit-screen').classList.toggle('visible', screen === 'edit');
+      document.getElementById('fab').classList.toggle('visible', screen === 'list');
+    }
+
+    function navigateTo(nextScreen, push) {
+      screen = nextScreen;
+      if (push) {
+        navDepth++;
+        history.pushState({ screen: nextScreen, depth: navDepth }, '');
+      }
+      updateScreens();
+    }
+
+    function goBack() {
+      if (navDepth > 0) {
+        history.back();
+      } else {
+        screen = 'list';
+        updateScreens();
+      }
+    }
+
+    window.addEventListener('popstate', e => {
+      navDepth = (e.state && Number(e.state.depth)) || 0;
+      const target = (e.state && e.state.screen) || 'list';
+      if (target === 'detail' && currentKey && entries.some(en => en.key === currentKey)) {
+        screen = 'detail';
+        renderDetail();
+      } else if (target === 'edit' && edit) {
+        screen = 'edit';
+      } else {
+        screen = 'list';
+      }
+      updateScreens();
+    });
+
+    // ===== 一覧描画 =====
+    function visibleEntries() {
+      if (!activeTag) return entries;
+      return entries.filter(en => (en.meta && en.meta.tags || []).includes(activeTag));
+    }
+
+    function renderTagFilter() {
+      const box = document.getElementById('tag-filter');
+      const counts = new Map();
+      for (const en of entries) {
+        for (const t of (en.meta && en.meta.tags || [])) {
+          counts.set(t, (counts.get(t) || 0) + 1);
+        }
+      }
+      if (activeTag && !counts.has(activeTag)) activeTag = null;
+      if (counts.size === 0) { box.innerHTML = ''; return; }
+      const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'));
+      let html = `<button type="button" class="filter-chip${activeTag === null ? ' active' : ''}" data-tag="">すべて (${entries.length})</button>`;
+      for (const [tag, count] of sorted) {
+        html += `<button type="button" class="filter-chip${activeTag === tag ? ' active' : ''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)} (${count})</button>`;
+      }
+      box.innerHTML = html;
+    }
+
+    function renderEmptyState() {
+      const el = document.getElementById('empty-state');
+      if (!isLinked()) {
+        el.innerHTML = `
+          <div class="empty-icon">🔗</div>
+          Dropbox と連携すると、日記フォルダの記事を読み書きできます。<br>
+          初回は取扱説明書の手順で App Key を用意してください。
+          <br><button type="button" data-action="open-settings">設定を開く</button>`;
+        el.classList.add('visible');
+        return;
+      }
+      if (!settings.folderPath) {
+        el.innerHTML = `
+          <div class="empty-icon">📁</div>
+          日記を保存する Dropbox フォルダが未設定です。
+          <br><button type="button" data-action="open-settings">フォルダを設定する</button>`;
+        el.classList.add('visible');
+        return;
+      }
+      if (entries.length === 0) {
+        el.innerHTML = `
+          <div class="empty-icon">📓</div>
+          まだ日記がありません。<br>右下のボタンから今日の日記を書きはじめましょう。`;
+        el.classList.add('visible');
+        return;
+      }
+      el.classList.remove('visible');
+      el.innerHTML = '';
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('entry-list');
+      const today = todayStr();
+      renderTagFilter();
+      renderEmptyState();
+
+      const cards = [];
+      for (const en of visibleEntries()) {
+        const isToday = en.date === today;
+        const tagsHtml = (en.meta && en.meta.tags || [])
+          .map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('');
+        cards.push(`
+          <div class="entry-card${isToday ? ' today' : ''}" data-key="${escapeHtml(en.key)}" role="button" tabindex="0">
+            <div class="entry-card-date">${escapeHtml(formatDateJa(en.date))}${isToday ? '<span class="today-badge">TODAY</span>' : ''}</div>
+            <div class="entry-card-excerpt">${escapeHtml(makeExcerpt(en.body)) || '（本文なし）'}</div>
+            ${tagsHtml ? `<div class="entry-card-tags">${tagsHtml}</div>` : ''}
+          </div>`);
+      }
+      const emptyState = document.getElementById('empty-state');
+      listEl.innerHTML = cards.join('');
+      listEl.prepend(emptyState);
+
+      // FAB ラベル更新
+      const fab = document.getElementById('fab');
+      const hasToday = entries.some(en => en.date === today);
+      if (!isLinked() || !settings.folderPath) {
+        fab.textContent = '⚙️ 設定をはじめる';
+      } else if (hasToday) {
+        fab.textContent = '📖 今日の日記';
+      } else {
+        fab.textContent = '＋ 今日の日記';
+      }
+    }
+
+    function renderAll() {
+      renderList();
+      if (screen === 'detail') renderDetail();
+    }
+
+    // ===== 詳細描画 =====
+    function findEntry(key) { return entries.find(en => en.key === key) || null; }
+
+    function renderDetail() {
+      const en = findEntry(currentKey);
+      if (!en) { screen = 'list'; updateScreens(); return; }
+      document.getElementById('detail-title').textContent = formatDateJa(en.date);
+      const metaEl = document.getElementById('detail-meta');
+      const meta = en.meta || {};
+      let html = `<span class="meta-date">📅 ${escapeHtml(meta.created || en.date)}</span>`;
+      for (const t of (meta.tags || [])) html += `<span class="tag-badge">${escapeHtml(t)}</span>`;
+      if (meta.author) html += `<span class="meta-author">✍️ ${escapeHtml(meta.author)}</span>`;
+      metaEl.innerHTML = html;
+
+      const bodyEl = document.getElementById('detail-body');
+      if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
+        bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(en.body || ''));
+        if (typeof hljs !== 'undefined') {
+          bodyEl.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+        }
+        bodyEl.querySelectorAll('a[href]').forEach(a => {
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener noreferrer');
+        });
+      } else {
+        bodyEl.textContent = en.body || '';
+      }
+    }
+
+    function openDetail(key, push) {
+      currentKey = key;
+      renderDetail();
+      navigateTo('detail', push !== false);
+      document.getElementById('detail-scroll').scrollTop = 0;
+    }
+
+    // ===== タグチップ入力 =====
+    function createChipInput(boxId, inputId) {
+      const box = document.getElementById(boxId);
+      const input = document.getElementById(inputId);
+      let tags = [];
+
+      function render() {
+        box.querySelectorAll('.chip').forEach(c => c.remove());
+        for (let i = tags.length - 1; i >= 0; i--) {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          const label = document.createElement('span');
+          label.textContent = tags[i];
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = '×';
+          btn.setAttribute('aria-label', `タグ ${tags[i]} を削除`);
+          btn.dataset.index = String(i);
+          chip.append(label, btn);
+          box.prepend(chip);
+        }
+      }
+
+      function addFromInput() {
+        const value = input.value.trim();
+        if (!value) return;
+        if (!tags.includes(value)) { tags.push(value); render(); }
+        input.value = '';
+      }
+
+      input.addEventListener('keydown', e => {
+        if (e.isComposing || e.keyCode === 229) return;  // IME 変換中は無視
+        if (e.key === 'Enter') { e.preventDefault(); addFromInput(); }
+        else if (e.key === 'Backspace' && input.value === '' && tags.length > 0) {
+          tags.pop();
+          render();
+        }
+      });
+      input.addEventListener('blur', addFromInput);
+      box.addEventListener('click', e => {
+        const btn = e.target.closest('button[data-index]');
+        if (btn) {
+          tags.splice(Number(btn.dataset.index), 1);
+          render();
+          return;
+        }
+        if (e.target === box) input.focus();
+      });
+
+      return {
+        get: () => tags.slice(),
+        set: next => { tags = normalizeTags(next) || []; input.value = ''; render(); }
+      };
+    }
+
+    const editTagsChips = createChipInput('edit-tags-box', 'edit-tags-input');
+    const settingsTagsChips = createChipInput('settings-tags-box', 'settings-tags-input');
+
+    // ===== 下書き =====
+    let draftTimer = null;
+    function loadDraft() {
+      return safeLoadJson(KEY_DRAFT, v => {
+        if (!v || typeof v !== 'object') return null;
+        if (typeof v.path !== 'string' || typeof v.body !== 'string') return null;
+        return v;
+      });
+    }
+    function clearDraft() { try { localStorage.removeItem(KEY_DRAFT); } catch { /* 消せなくても次の保存で上書きされる */ } }
+
+    function scheduleDraftSave() {
+      if (!edit) return;
+      if (draftTimer) clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => {
+        if (!edit) return;
+        safeSaveJson(KEY_DRAFT, {
+          path: edit.path,
+          isNew: edit.isNew,
+          date: edit.date,
+          created: edit.created,
+          author: edit.author,
+          extraLines: edit.extraLines,
+          baseRev: edit.baseRev,
+          body: document.getElementById('edit-body').value,
+          tags: editTagsChips.get(),
+          savedAt: new Date().toISOString()
+        });
+        document.getElementById('edit-status').textContent = '下書き保存済み';
+      }, DRAFT_DEBOUNCE_MS);
+    }
+
+    // ===== 編集 =====
+    function beginEdit(state, push) {
+      edit = state;
+      document.getElementById('edit-title').textContent = formatDateJa(state.date);
+      document.getElementById('edit-body').value = state.body;
+      editTagsChips.set(state.tags);
+      document.getElementById('edit-status').textContent = '';
+      navigateTo('edit', push !== false);
+
+      // 同じ記事の未保存下書きがあれば復元を提案
+      const draft = loadDraft();
+      if (draft && draft.path === state.path && (draft.body !== state.body || JSON.stringify(normalizeTags(draft.tags) || []) !== JSON.stringify(state.tags))) {
+        const dateText = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '';
+        document.getElementById('draft-dialog-text').textContent =
+          `この記事には未保存の下書きがあります${dateText ? `（${dateText}）` : ''}。復元しますか?`;
+        document.getElementById('draft-dialog').showModal();
+      }
+    }
+
+    function openEditForEntry(entry, push) {
+      const meta = entry.meta || {};
+      beginEdit({
+        path: entry.path,
+        key: entry.key,
+        isNew: false,
+        fromDetail: screen === 'detail',
+        date: entry.date,
+        created: meta.created || entry.date,
+        author: meta.author || settings.author,
+        extraLines: entry.extraLines || [],
+        baseRev: entry.rev,
+        tags: (meta.tags || []).slice(),
+        body: entry.body
+      }, push);
+    }
+
+    function openEditForToday() {
+      const date = todayStr();
+      const path = `${settings.folderPath}/${date}.md`;
+      beginEdit({
+        path,
+        key: path.toLowerCase(),
+        isNew: true,
+        fromDetail: false,
+        date,
+        created: date,
+        author: settings.author,
+        extraLines: [],
+        baseRev: null,
+        tags: settings.defaultTags.slice(),
+        body: ''
+      });
+    }
+
+    function isEditDirty() {
+      if (!edit) return false;
+      const body = document.getElementById('edit-body').value;
+      if (body !== edit.body) return true;
+      return JSON.stringify(editTagsChips.get()) !== JSON.stringify(edit.tags);
+    }
+
+    function applyEntryUpdate(entry) {
+      const idx = entries.findIndex(en => en.key === entry.key);
+      if (idx >= 0) entries[idx] = entry; else entries.push(entry);
+      entries.sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    async function saveCurrentEdit(overwrite) {
+      if (!edit || saving) return;
+      saving = true;
+      const saveBtn = document.getElementById('btn-save');
+      saveBtn.disabled = true;
+      document.getElementById('edit-status').textContent = '保存中…';
+      try {
+        const body = document.getElementById('edit-body').value;
+        const meta = { created: edit.created, tags: editTagsChips.get(), author: edit.author };
+        const content = serializeFrontmatter(meta, edit.extraLines, body);
+        let mode = edit.baseRev ? { '.tag': 'update', update: edit.baseRev } : 'add';
+        if (overwrite) {
+          const remote = await dbxRpc('files/get_metadata', { path: edit.path });
+          mode = { '.tag': 'update', update: remote.rev };
+        }
+        const result = await dbxUpload(edit.path, content, mode);
+        cache[result.path_lower] = { rev: String(result.rev || ''), content };
+        saveCache();
+        const entry = buildEntry(result, content);
+        applyEntryUpdate(entry);
+        clearDraft();
+        if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
+
+        currentKey = entry.key;
+        const wasFromDetail = edit.fromDetail;
+        edit = null;
+        renderList();
+        if (wasFromDetail && navDepth > 0) {
+          history.back();  // popstate 側で detail を描画
+        } else {
+          screen = 'detail';
+          history.replaceState({ screen: 'detail', depth: navDepth }, '');
+          renderDetail();
+          updateScreens();
+        }
+        showToast('保存しました');
+      } catch (err) {
+        if (err.summary && err.summary.includes('conflict')) {
+          document.getElementById('conflict-dialog').showModal();
+        } else {
+          console.warn('保存に失敗', err);
+          showToast(err.message || '保存に失敗しました', 'error');
+          document.getElementById('edit-status').textContent = '保存失敗（下書きは保持）';
+        }
+      } finally {
+        saving = false;
+        saveBtn.disabled = false;
+        if (edit) document.getElementById('edit-status').textContent = document.getElementById('edit-status').textContent || '';
+      }
+    }
+
+    // 競合時: Dropbox 側の最新を取り込み、閲覧画面で表示（編集内容は下書きに退避済み）
+    async function loadRemoteAfterConflict() {
+      if (!edit) return;
+      try {
+        const path = edit.path;
+        const dl = await dbxDownload(path);
+        const remoteMeta = await dbxRpc('files/get_metadata', { path });
+        cache[remoteMeta.path_lower] = { rev: dl.rev || remoteMeta.rev, content: dl.content };
+        saveCache();
+        const entry = buildEntry(remoteMeta, dl.content);
+        applyEntryUpdate(entry);
+        currentKey = entry.key;
+        edit = null;
+        renderList();
+        screen = 'detail';
+        history.replaceState({ screen: 'detail', depth: navDepth }, '');
+        renderDetail();
+        updateScreens();
+        showToast('Dropbox 側の最新内容を表示しています。編集内容は下書きに保存されています。');
+      } catch (err) {
+        console.warn('最新内容の取得に失敗', err);
+        showToast(err.message || '最新内容の取得に失敗しました', 'error');
+      }
+    }
+
+    // ===== フォルダピッカー =====
+    const picker = { path: '', folders: [] };
+
+    async function openPicker(startPath) {
+      document.getElementById('picker-dialog').showModal();
+      await loadPickerFolder(startPath || '');
+    }
+
+    async function loadPickerFolder(path) {
+      picker.path = path;
+      const listEl = document.getElementById('picker-list');
+      const emptyEl = document.getElementById('picker-empty');
+      renderPickerBreadcrumb();
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = '読み込み中…';
+      try {
+        const items = await listFolderAll(path);
+        picker.folders = items
+          .filter(it => it['.tag'] === 'folder')
+          .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+        if (picker.folders.length === 0) {
+          emptyEl.textContent = 'サブフォルダはありません';
+        } else {
+          emptyEl.style.display = 'none';
+          listEl.innerHTML = picker.folders
+            .map(f => `<li><button type="button" data-path="${escapeHtml(f.path_display || f.path_lower)}">📁 ${escapeHtml(f.name)}</button></li>`)
+            .join('');
+        }
+      } catch (err) {
+        console.warn('フォルダ一覧の取得に失敗', err);
+        emptyEl.textContent = err.message || 'フォルダ一覧の取得に失敗しました';
+      }
+    }
+
+    function renderPickerBreadcrumb() {
+      const el = document.getElementById('picker-breadcrumb');
+      const parts = picker.path.split('/').filter(Boolean);
+      let html = '<button type="button" data-path="">Dropbox</button>';
+      let acc = '';
+      for (const part of parts) {
+        acc += '/' + part;
+        html += `<span class="crumb-sep">/</span><button type="button" data-path="${escapeHtml(acc)}">${escapeHtml(part)}</button>`;
+      }
+      el.innerHTML = html;
+    }
+
+    // ===== 設定 =====
+    function updateAuthStatus() {
+      const el = document.getElementById('auth-status');
+      if (isLinked()) {
+        el.textContent = '✔ 連携済み';
+        el.className = 'ok';
+      } else {
+        el.textContent = '未連携';
+        el.className = 'ng';
+      }
+    }
+
+    function openSettings() {
+      document.getElementById('input-app-key').value = settings.appKey;
+      document.getElementById('input-folder').value = settings.folderPath;
+      document.getElementById('input-author').value = settings.author;
+      settingsTagsChips.set(settings.defaultTags);
+      document.getElementById('redirect-uri-display').textContent = getRedirectUri();
+      document.getElementById('app-version-line').textContent = `Diary ${APP_VERSION}`;
+      updateAuthStatus();
+      document.getElementById('settings-dialog').showModal();
+    }
+
+    async function saveSettings() {
+      const newAppKey = document.getElementById('input-app-key').value.trim();
+      const newAuthor = document.getElementById('input-author').value.trim() || DEFAULT_AUTHOR;
+      const newTags = settingsTagsChips.get();
+      const newFolder = normalizeFolderPath(document.getElementById('input-folder').value);
+      const folderChanged = newFolder !== settings.folderPath;
+      const appKeyChanged = newAppKey !== settings.appKey;
+
+      // フォルダが変わった場合は存在確認してから確定する（連携済みのときのみ確認可能）
+      if (folderChanged && newFolder && isLinked() && !appKeyChanged) {
+        try {
+          const meta = await dbxRpc('files/get_metadata', { path: newFolder });
+          if (meta['.tag'] !== 'folder') {
+            showToast('指定されたパスはフォルダではありません', 'error');
+            return;
+          }
+        } catch (err) {
+          console.warn('フォルダの確認に失敗', err);
+          showToast('フォルダを確認できませんでした: ' + (err.summary && err.summary.includes('not_found') ? 'パスが存在しません' : err.message), 'error');
+          return;
+        }
+      }
+
+      settings.appKey = newAppKey;
+      settings.author = newAuthor;
+      settings.defaultTags = newTags.length > 0 ? newTags : DEFAULT_TAGS.slice();
+      settings.folderPath = newFolder;
+      safeSaveJson(KEY_APP_KEY, settings.appKey);
+      safeSaveJson(KEY_AUTHOR, settings.author);
+      safeSaveJson(KEY_DEFAULT_TAGS, settings.defaultTags);
+      safeSaveJson(KEY_FOLDER, settings.folderPath);
+
+      if (appKeyChanged && isLinked()) {
+        clearTokens();
+        showToast('App Key を変更したため連携を解除しました。もう一度連携してください。', 'error');
+        updateAuthStatus();
+        renderAll();
+        return;
+      }
+
+      document.getElementById('settings-dialog').close();
+      showToast('設定を保存しました');
+      if (folderChanged) {
+        entries = [];
+        cache = {};
+        saveCache();
+        syncEntries();
+      } else {
+        renderAll();
+      }
+    }
+
+    // ===== テーマ =====
+    function applyTheme(dark) {
+      document.body.classList.toggle('light', !dark);
+      document.getElementById('btn-theme').textContent = dark ? '🌙' : '☀️';
+      const bg = dark ? '#1a1a2e' : '#eef0f7';
+      document.documentElement.style.background = bg;
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute('content', dark ? '#16213e' : '#E8EBF5');
+    }
+
+    function isDarkTheme() { return safeLoadJson(KEY_THEME) !== 'light'; }
+
+    // ===== バナー =====
+    function showReauthBanner() { document.getElementById('reauth-banner').classList.add('visible'); }
+    function hideReauthBanner() { document.getElementById('reauth-banner').classList.remove('visible'); }
+
+    // ===== イベント登録 =====
+    function bindEvents() {
+      document.getElementById('btn-theme').addEventListener('click', () => {
+        const nextDark = document.body.classList.contains('light');
+        applyTheme(nextDark);
+        safeSaveJson(KEY_THEME, nextDark ? 'dark' : 'light');
+      });
+
+      document.getElementById('btn-sync').addEventListener('click', () => {
+        if (!isLinked() || !settings.folderPath) { openSettings(); return; }
+        syncEntries();
+      });
+      document.getElementById('btn-settings').addEventListener('click', openSettings);
+      document.getElementById('btn-reauth').addEventListener('click', () => { hideReauthBanner(); openSettings(); });
+
+      // 一覧: カードとタグフィルタ（イベント委譲）
+      document.getElementById('entry-list').addEventListener('click', e => {
+        const card = e.target.closest('.entry-card');
+        if (card) {
+          card.classList.add('flash');
+          openDetail(card.dataset.key);
+          return;
+        }
+        const action = e.target.closest('button[data-action="open-settings"]');
+        if (action) openSettings();
+      });
+      document.getElementById('entry-list').addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest('.entry-card');
+        if (card) { e.preventDefault(); openDetail(card.dataset.key); }
+      });
+      document.getElementById('tag-filter').addEventListener('click', e => {
+        const chip = e.target.closest('.filter-chip');
+        if (!chip) return;
+        activeTag = chip.dataset.tag || null;
+        renderList();
+      });
+
+      // FAB
+      document.getElementById('fab').addEventListener('click', () => {
+        if (!isLinked() || !settings.folderPath) { openSettings(); return; }
+        const today = entries.find(en => en.date === todayStr());
+        if (today) openDetail(today.key); else openEditForToday();
+      });
+
+      // 詳細画面
+      document.getElementById('btn-detail-back').addEventListener('click', goBack);
+      document.getElementById('btn-detail-edit').addEventListener('click', () => {
+        const en = findEntry(currentKey);
+        if (en) openEditForEntry(en);
+      });
+
+      // 編集画面
+      document.getElementById('btn-edit-back').addEventListener('click', () => {
+        if (isEditDirty() && !confirm('編集内容を破棄しますか?（下書きには残ります）')) return;
+        edit = null;
+        goBack();
+      });
+      document.getElementById('btn-save').addEventListener('click', () => { saveCurrentEdit(); });
+      document.getElementById('edit-body').addEventListener('input', () => {
+        document.getElementById('edit-status').textContent = '';
+        scheduleDraftSave();
+      });
+      document.getElementById('edit-tags-input').addEventListener('input', scheduleDraftSave);
+      document.getElementById('edit-tags-box').addEventListener('click', scheduleDraftSave);
+
+      document.addEventListener('keydown', e => {
+        if (screen === 'edit' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          saveCurrentEdit();
+        }
+      });
+
+      // 設定ダイアログ
+      document.getElementById('btn-settings-close').addEventListener('click', () => document.getElementById('settings-dialog').close());
+      document.getElementById('btn-settings-save').addEventListener('click', () => { saveSettings(); });
+      document.getElementById('btn-copy-redirect').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(getRedirectUri());
+          showToast('Redirect URI をコピーしました');
+        } catch (err) {
+          console.warn('クリップボードへのコピーに失敗', err);
+          showToast('コピーできませんでした。表示されている URI を手動でコピーしてください。', 'error');
+        }
+      });
+      document.getElementById('btn-auth').addEventListener('click', () => {
+        // 入力途中の App Key を反映してから認可へ
+        const inputKey = document.getElementById('input-app-key').value.trim();
+        if (inputKey && inputKey !== settings.appKey) {
+          settings.appKey = inputKey;
+          safeSaveJson(KEY_APP_KEY, settings.appKey);
+        }
+        startDropboxAuth();
+      });
+      document.getElementById('btn-unlink').addEventListener('click', async () => {
+        if (!isLinked()) { showToast('連携されていません'); return; }
+        if (!confirm('Dropbox との連携を解除しますか?')) return;
+        await revokeToken();
+        clearTokens();
+        updateAuthStatus();
+        renderAll();
+        showToast('連携を解除しました');
+      });
+      document.getElementById('btn-browse').addEventListener('click', () => {
+        if (!isLinked()) { showToast('先に Dropbox と連携してください', 'error'); return; }
+        openPicker(normalizeFolderPath(document.getElementById('input-folder').value) || '');
+      });
+
+      // フォルダピッカー
+      document.getElementById('picker-list').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-path]');
+        if (btn) loadPickerFolder(btn.dataset.path);
+      });
+      document.getElementById('picker-breadcrumb').addEventListener('click', e => {
+        const btn = e.target.closest('button[data-path]');
+        if (btn) loadPickerFolder(btn.dataset.path);
+      });
+      document.getElementById('btn-picker-cancel').addEventListener('click', () => document.getElementById('picker-dialog').close());
+      document.getElementById('btn-picker-select').addEventListener('click', () => {
+        document.getElementById('input-folder').value = picker.path;
+        document.getElementById('picker-dialog').close();
+      });
+
+      // 競合ダイアログ
+      document.getElementById('btn-conflict-remote').addEventListener('click', () => {
+        document.getElementById('conflict-dialog').close();
+        loadRemoteAfterConflict();
+      });
+      document.getElementById('btn-conflict-overwrite').addEventListener('click', () => {
+        document.getElementById('conflict-dialog').close();
+        saveCurrentEdit(true);
+      });
+
+      // 下書きダイアログ
+      document.getElementById('btn-draft-restore').addEventListener('click', () => {
+        const draft = loadDraft();
+        document.getElementById('draft-dialog').close();
+        if (draft && edit && draft.path === edit.path) {
+          document.getElementById('edit-body').value = draft.body;
+          editTagsChips.set(draft.tags);
+          document.getElementById('edit-status').textContent = '下書きを復元しました';
+        }
+      });
+      document.getElementById('btn-draft-discard').addEventListener('click', () => {
+        clearDraft();
+        document.getElementById('draft-dialog').close();
+      });
+    }
+
+    // ===== 起動 =====
+    async function init() {
+      applyTheme(isDarkTheme());
+      bindEvents();
+      history.replaceState({ screen: 'list', depth: 0 }, '');
+      updateScreens();
+      renderAll();
+
+      const justLinked = await handleAuthCallback();
+      if (justLinked) renderAll();
+
+      if (isLinked() && settings.folderPath) {
+        // キャッシュから即時表示 → 裏で同期
+        const cachedEntries = [];
+        for (const [key, value] of Object.entries(cache)) {
+          if (!value || typeof value.content !== 'string') continue;
+          const name = key.split('/').pop() || '';
+          const m = DIARY_FILE_RE.exec(name);
+          if (!m) continue;
+          cachedEntries.push(buildEntry({ name, path_display: key, path_lower: key, rev: value.rev }, value.content));
+        }
+        if (cachedEntries.length > 0) {
+          cachedEntries.sort((a, b) => b.date.localeCompare(a.date));
+          entries = cachedEntries;
+          renderAll();
+        }
+        await syncEntries();
+      }
+
+      // 未保存の下書きがあれば編集再開を提案
+      const draft = loadDraft();
+      if (draft) {
+        const en = entries.find(e2 => e2.path === draft.path);
+        const dateText = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '';
+        if (en) {
+          openEditForEntry(en, true);
+        } else if (draft.isNew && isLinked() && settings.folderPath) {
+          beginEdit({
+            path: draft.path,
+            key: String(draft.path).toLowerCase(),
+            isNew: true,
+            fromDetail: false,
+            date: draft.date || todayStr(),
+            created: draft.created || draft.date || todayStr(),
+            author: typeof draft.author === 'string' && draft.author ? draft.author : settings.author,
+            extraLines: Array.isArray(draft.extraLines) ? draft.extraLines : [],
+            baseRev: null,
+            tags: normalizeTags(draft.tags) || settings.defaultTags.slice(),
+            body: ''
+          });
+        } else if (dateText) {
+          showToast(`未保存の下書きがあります（${dateText}）`);
+        }
+      }
+    }
+
+    init().catch(err => {
+      console.error('初期化に失敗', err);
+      showToast('起動処理でエラーが発生しました: ' + err.message, 'error');
+    });
+  </script>
+</body>
+</html>
