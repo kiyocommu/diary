@@ -1090,7 +1090,9 @@
     }
 
     // ===== Dropbox OAuth (PKCE) =====
-    function getRedirectUri() { return location.origin + location.pathname; }
+    // ホーム画面から起動すると manifest の start_url（index.html 付き）で開くため、
+    // 常に index.html を除いたパスに正規化して Redirect URI の登録値と一致させる
+    function getRedirectUri() { return location.origin + location.pathname.replace(/index\.html$/, ''); }
 
     function base64UrlEncode(bytes) {
       let s = '';
