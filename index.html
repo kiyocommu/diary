@@ -66,11 +66,20 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg-base);
       color: var(--text-primary);
-      height: 100vh;
-      height: 100dvh;
+      /* standalone（ホーム画面追加）では 100dvh が実画面より短くなる環境があるため、
+         JS が visualViewport から算出する --app-height を優先し、非対応時のみ 100dvh にフォールバック */
+      height: var(--app-height, 100vh);
+      height: var(--app-height, 100dvh);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+    }
+    /* ホーム画面から起動した縦向きスマホでは実画面いっぱいを確保（ai-blog 2026-07-10 と同方式） */
+    @media (max-width: 720px) and (orientation: portrait) {
+      body.standalone-app { height: 100vh; min-height: 100vh; }
+    }
+    @media (display-mode: standalone) and (max-width: 720px) and (orientation: portrait) {
+      body { height: 100vh; min-height: 100vh; }
     }
 
     /* スキャンライン（ダークのみ） */
@@ -889,7 +898,7 @@
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-24.card-left-border';
+    const APP_VERSION = '2026-07-24.standalone-height';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
@@ -2002,8 +2011,39 @@
     function showReauthBanner() { document.getElementById('reauth-banner').classList.add('visible'); }
     function hideReauthBanner() { document.getElementById('reauth-banner').classList.remove('visible'); }
 
+    // ===== ビューポート高さ / standalone（ai-blog 2026-07-10 と同方式） =====
+    function updateAppViewportHeight() {
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
+    }
+
+    function updateStandaloneDisplayMode() {
+      const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      document.body.classList.toggle('standalone-app', isStandalone);
+    }
+
+    function bindAppViewportHeight() {
+      updateStandaloneDisplayMode();
+      updateAppViewportHeight();
+      window.addEventListener('resize', updateAppViewportHeight);
+      window.addEventListener('orientationchange', () => {
+        updateStandaloneDisplayMode();
+        updateAppViewportHeight();
+        setTimeout(updateAppViewportHeight, 250);
+      });
+      window.visualViewport?.addEventListener('resize', updateAppViewportHeight);
+      const standaloneMedia = window.matchMedia?.('(display-mode: standalone)');
+      if (standaloneMedia?.addEventListener) {
+        standaloneMedia.addEventListener('change', updateStandaloneDisplayMode);
+      } else if (standaloneMedia?.addListener) {
+        standaloneMedia.addListener(updateStandaloneDisplayMode);
+      }
+    }
+
     // ===== イベント登録 =====
     function bindEvents() {
+      bindAppViewportHeight();
+
       document.getElementById('btn-theme').addEventListener('click', () => {
         const nextDark = document.body.classList.contains('light');
         applyTheme(nextDark);
