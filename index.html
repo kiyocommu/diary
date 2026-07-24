@@ -322,11 +322,18 @@
       flex-shrink: 0;
     }
 
-    /* FAB（今日の日記） */
-    #fab {
+    /* FAB 行（同期 + 今日の日記） */
+    #fab-row {
       position: fixed;
       right: max(18px, env(safe-area-inset-right));
       bottom: max(20px, calc(12px + env(safe-area-inset-bottom)));
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 100;
+    }
+    #fab-row.visible { display: flex; }
+    #fab {
       background: var(--accent-pink);
       color: #fff;
       border: none;
@@ -337,15 +344,34 @@
       font-weight: 600;
       cursor: pointer;
       box-shadow: 0 4px 18px #e9456066;
-      display: none;
+      display: flex;
       align-items: center;
       gap: 8px;
-      z-index: 100;
     }
-    #fab.visible { display: flex; }
     #fab:active { transform: scale(0.97); }
+    /* ミニマルな同期ボタン: FAB と同系デザインの小さな円形・アイコンのみ */
+    #fab-sync {
+      background: var(--accent-pink);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 4px 18px #e9456055;
+      opacity: 0.88;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #fab-sync.visible { display: flex; }
+    #fab-sync:active { transform: scale(0.94); }
+    #fab-sync.syncing { animation: spin 1s linear infinite; }
     @media (min-width: 900px) {
-      #fab { right: calc(50% - 390px + 18px); }
+      #fab-row { right: calc(50% - 390px + 18px); }
     }
 
     /* ===== 記事画面共通（詳細・編集） ===== */
@@ -766,7 +792,10 @@
     </section>
   </main>
 
-  <button type="button" id="fab" class="visible">＋ 今日の日記</button>
+  <div id="fab-row" class="visible">
+    <button type="button" id="fab-sync" aria-label="同期">🔄</button>
+    <button type="button" id="fab">＋ 今日の日記</button>
+  </div>
 
   <!-- ===== 設定ダイアログ ===== -->
   <dialog id="settings-dialog" aria-label="設定">
@@ -858,7 +887,7 @@
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-24.dialog-height-fix';
+    const APP_VERSION = '2026-07-24.fab-sync-button';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
@@ -1373,6 +1402,7 @@
       syncing = true;
       setSyncStatus('同期中…');
       document.getElementById('btn-sync').classList.add('syncing');
+      document.getElementById('fab-sync').classList.add('syncing');
       try {
         const items = await listFolderAll(settings.folderPath);
         const files = items.filter(it => it['.tag'] === 'file' && DIARY_FILE_RE.test(it.name));
@@ -1417,6 +1447,7 @@
       } finally {
         syncing = false;
         document.getElementById('btn-sync').classList.remove('syncing');
+        document.getElementById('fab-sync').classList.remove('syncing');
         renderAll();
       }
     }
@@ -1430,7 +1461,7 @@
       document.getElementById('list-screen').classList.toggle('visible', screen === 'list');
       document.getElementById('detail-screen').classList.toggle('visible', screen === 'detail');
       document.getElementById('edit-screen').classList.toggle('visible', screen === 'edit');
-      document.getElementById('fab').classList.toggle('visible', screen === 'list');
+      document.getElementById('fab-row').classList.toggle('visible', screen === 'list');
     }
 
     function navigateTo(nextScreen, push) {
@@ -1543,14 +1574,17 @@
 
       // FAB ラベル更新
       const fab = document.getElementById('fab');
+      const ready = isLinked() && !!settings.folderPath;
       const hasToday = entries.some(en => en.date === today);
-      if (!isLinked() || !settings.folderPath) {
+      if (!ready) {
         fab.textContent = '⚙️ 設定をはじめる';
       } else if (hasToday) {
         fab.textContent = '📖 今日の日記';
       } else {
         fab.textContent = '＋ 今日の日記';
       }
+      // 同期ミニボタンは連携済み・フォルダ設定済みのときのみ表示
+      document.getElementById('fab-sync').classList.toggle('visible', ready);
     }
 
     function renderAll() {
@@ -1974,6 +2008,10 @@
         safeSaveJson(KEY_THEME, nextDark ? 'dark' : 'light');
       });
 
+      document.getElementById('fab-sync').addEventListener('click', () => {
+        if (!isLinked() || !settings.folderPath) { openSettings(); return; }
+        syncEntries();
+      });
       document.getElementById('btn-sync').addEventListener('click', () => {
         if (!isLinked() || !settings.folderPath) { openSettings(); return; }
         syncEntries();
