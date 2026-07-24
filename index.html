@@ -762,7 +762,7 @@
   <!-- ===== 設定ダイアログ ===== -->
   <dialog id="settings-dialog" aria-label="設定">
     <div class="dialog-header">設定</div>
-    <div class="dialog-body">
+    <div class="dialog-body" id="settings-dialog-body" tabindex="-1">
       <label class="form-label" for="input-app-key">Dropbox App Key</label>
       <input type="text" class="form-input" id="input-app-key" placeholder="例: abcd1234efgh567" autocomplete="off" spellcheck="false">
       <div class="form-hint">
@@ -1884,6 +1884,7 @@
       document.getElementById('app-version-line').textContent = `Diary ${APP_VERSION}`;
       updateAuthStatus();
       document.getElementById('settings-dialog').showModal();
+      document.getElementById('settings-dialog-body').focus();
     }
 
     async function saveSettings() {
