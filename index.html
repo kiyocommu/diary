@@ -230,7 +230,7 @@
     .entry-card {
       background: var(--bg-panel);
       border: 1px solid var(--border-base);
-      border-left: 3px solid transparent;
+      border-left: 3px solid var(--border-base);
       border-radius: 8px;
       padding: 12px 14px;
       margin-bottom: 10px;
@@ -372,6 +372,8 @@
     #fab-sync.syncing { animation: spin 1s linear infinite; }
     @media (min-width: 900px) {
       #fab-row { right: calc(50% - 390px + 18px); }
+      /* PC ではヘッダーの 🔄 のみ。FAB 左隣の同期ボタンはスマホ表示専用 */
+      #fab-sync, #fab-sync.visible { display: none; }
     }
 
     /* ===== 記事画面共通（詳細・編集） ===== */
@@ -887,7 +889,7 @@
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-24.fab-sync-button';
+    const APP_VERSION = '2026-07-24.card-left-border';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
