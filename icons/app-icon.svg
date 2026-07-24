@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diary">
+  <rect width="512" height="512" rx="96" fill="#64779f"/>
+  <!-- ノート本体 -->
+  <g>
+    <rect x="126" y="106" width="260" height="300" rx="22" fill="#ffffff"/>
+    <!-- 背表紙リング -->
+    <rect x="112" y="106" width="42" height="300" rx="21" fill="#9aaabf"/>
+    <circle cx="133" cy="152" r="10" fill="#64779f"/>
+    <circle cx="133" cy="216" r="10" fill="#64779f"/>
+    <circle cx="133" cy="280" r="10" fill="#64779f"/>
+    <circle cx="133" cy="344" r="10" fill="#64779f"/>
+    <!-- 日付見出し -->
+    <rect x="184" y="150" width="120" height="26" rx="13" fill="#64779f"/>
+    <!-- 本文の罫線 -->
+    <rect x="184" y="212" width="168" height="14" rx="7" fill="#64779f" opacity="0.45"/>
+    <rect x="184" y="252" width="168" height="14" rx="7" fill="#64779f" opacity="0.45"/>
+    <rect x="184" y="292" width="128" height="14" rx="7" fill="#64779f" opacity="0.45"/>
+  </g>
+  <!-- ペン -->
+  <g transform="translate(340,332) rotate(45)">
+    <rect x="-24" y="-104" width="48" height="150" rx="20" fill="#ffffff" stroke="#64779f" stroke-width="10"/>
+    <path d="M -24,46 L 0,102 L 24,46 Z" fill="#ffffff" stroke="#64779f" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="0" cy="84" r="7" fill="#64779f"/>
+  </g>
+</svg>

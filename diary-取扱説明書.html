@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Diary（Dropbox 連携 日記アプリ）の取扱説明書。Dropbox App Console の初期設定、連携手順、日記の作成・編集、データ仕様、競合と下書き、トラブル対応を説明します。">
+  <meta name="manual:app" content="Diary">
+  <meta name="manual:updated" content="2026-07-23">
+  <meta name="manual:audience" content="human, ai">
+  <title>Diary 取扱説明書</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-soft: #eef2f7;
+      --text: #172033;
+      --muted: #5f6b7a;
+      --border: #d8dee8;
+      --accent: #e94560;
+      --accent-2: #2f75b5;
+      --ok: #177245;
+      --warn: #b86b00;
+      --code-bg: #111827;
+      --code-text: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.8;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
+    header.page {
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 14px;
+      margin-bottom: 26px;
+    }
+    header.page h1 { margin: 0 0 6px; font-size: 1.6rem; }
+    header.page p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+    nav.toc {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 30px;
+      font-size: 0.95rem;
+    }
+    nav.toc ol { margin: 6px 0 0; padding-left: 22px; }
+    section { margin-bottom: 40px; }
+    h2 {
+      font-size: 1.25rem;
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+      margin: 40px 0 14px;
+    }
+    h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 24px; }
+    li { margin: 4px 0; }
+    code {
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 0.86em;
+      word-break: break-all;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 8px;
+      padding: 14px 18px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    pre code { background: none; border: none; color: inherit; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+    th { background: var(--panel-soft); }
+    .note, .warn, .ok {
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 0.92rem;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .note { border-left: 4px solid var(--accent-2); }
+    .warn { border-left: 4px solid var(--warn); }
+    .ok { border-left: 4px solid var(--ok); }
+    kbd {
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.85em;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page">
+      <h1>Diary 取扱説明書</h1>
+      <p>Dropbox 連携 日記アプリ（1日1記事・Markdown・Obsidian 互換） / 最終更新: 2026-07-23</p>
+    </header>
+
+    <nav class="toc">
+      <strong>目次</strong>
+      <ol>
+        <li><a href="#overview">概要</a></li>
+        <li><a href="#setup-dropbox">初期設定 1: Dropbox App Console でアプリを作る</a></li>
+        <li><a href="#setup-app">初期設定 2: アプリで連携する</a></li>
+        <li><a href="#usage">使い方</a></li>
+        <li><a href="#data">データ仕様</a></li>
+        <li><a href="#conflict">競合と下書き</a></li>
+        <li><a href="#trouble">トラブル対応</a></li>
+        <li><a href="#security">セキュリティと注意事項</a></li>
+      </ol>
+    </nav>
+
+    <section id="overview">
+      <h2>1. 概要</h2>
+      <p>Diary は、Dropbox 内の日記フォルダに <strong>1日1記事</strong>の Markdown ファイル（<code>YYYY-MM-DD.md</code>）を作成・閲覧・編集する、ブログ形式の日記アプリです。スマホの Chrome での利用を主として設計されています。</p>
+      <ul>
+        <li>Dropbox 公式 API（OAuth / PKCE）で自分のアカウントに接続し、ブラウザから直接ファイルを読み書きします。サーバーや中継サービスはありません。</li>
+        <li>「今日の日記」ボタンで、今日の日付のファイルが<strong>なければ新規作成、あればそのまま開き</strong>ます。</li>
+        <li>ファイル冒頭のフロントマター（<code>created</code> / <code>tags</code> / <code>author</code>）は自動で管理されます。編集画面には本文だけが表示され、タグはチップ入力で編集します。</li>
+        <li>Obsidian で書いた既存の日記ファイルもそのまま一覧・閲覧・編集できます（フロントマターの未知キーは壊さず保持します）。</li>
+        <li>PWA としてホーム画面に追加できます。</li>
+      </ul>
+    </section>
+
+    <section id="setup-dropbox">
+      <h2>2. 初期設定 1: Dropbox App Console でアプリを作る</h2>
+      <p>Dropbox API を使うため、最初に一度だけ「自分専用の Dropbox アプリ」を作成します（無料・自分のアカウントだけで使う場合は審査不要）。</p>
+      <ol>
+        <li><a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener noreferrer">Dropbox App Console</a> を開き、<strong>Create app</strong> を押す。</li>
+        <li>次のとおり選択して作成する。
+          <ul>
+            <li>Choose an API: <strong>Scoped access</strong></li>
+            <li>Choose the type of access: <strong>Full Dropbox</strong>（既存の日記フォルダ <code>/07_memo/Cursor Vault/01_コラム・執筆/日記</code> のような任意パスへアクセスするため。App folder では不可）</li>
+            <li>Name: 任意（例: <code>kiyohito-diary</code>。全 Dropbox ユーザー間で一意な名前が必要）</li>
+          </ul>
+        </li>
+        <li>作成後、<strong>Permissions</strong> タブで次の 3 つにチェックを入れて <strong>Submit</strong>。
+          <ul>
+            <li><code>files.metadata.read</code></li>
+            <li><code>files.content.read</code></li>
+            <li><code>files.content.write</code></li>
+          </ul>
+        </li>
+        <li><strong>Settings</strong> タブの <strong>OAuth 2 → Redirect URIs</strong> に、<strong>Diary を開く URL をそのまま</strong>登録する（複数登録可）。
+          <ul>
+            <li>公開版（GitHub Pages 等）: 例 <code>https://&lt;ユーザー名&gt;.github.io/&lt;リポジトリ名&gt;/output/diary/</code></li>
+            <li>ローカル開発用: <code>http://localhost:8909/</code></li>
+          </ul>
+          <div class="note">正確な値は Diary の設定画面に「Redirect URI にはこの URL を登録」として表示されます（コピー用ボタンあり）。<strong>表示された URI と完全一致</strong>（末尾の <code>/</code> や <code>index.html</code> の有無まで）で登録してください。</div>
+        </li>
+        <li>Settings タブ上部の <strong>App key</strong> を控える（次の手順で使用）。<strong>App secret は使いません</strong>（PKCE 方式のため不要。どこにも入力しないでください）。</li>
+      </ol>
+    </section>
+
+    <section id="setup-app">
+      <h2>3. 初期設定 2: アプリで連携する</h2>
+      <ol>
+        <li>Diary を開き、ヘッダー右上の <strong>⚙️（設定）</strong> を押す。</li>
+        <li><strong>Dropbox App Key</strong> に控えた App key を貼り付ける。</li>
+        <li><strong>「Dropbox と連携する」</strong>を押す → Dropbox の許可画面が開くので承認する → 自動でアプリに戻り「連携済み」と表示される。</li>
+        <li><strong>日記フォルダ</strong>を設定する。「フォルダを参照…」で Dropbox 内をたどって選ぶか、パスを直接入力（例: <code>/07_memo/Cursor Vault/01_コラム・執筆/日記</code>）。</li>
+        <li>必要なら <strong>author（署名）</strong>と<strong>既定のタグ</strong>（新規作成時に自動で付くタグ。初期値「日記」）を変更する。</li>
+        <li><strong>保存</strong>を押す。フォルダ内の日記ファイルが読み込まれ、一覧に表示される。</li>
+      </ol>
+      <div class="ok">連携は端末（ブラウザ）ごとに 1 回だけ必要です。以降はトークンが自動更新されるため、開くだけで使えます。</div>
+    </section>
+
+    <section id="usage">
+      <h2>4. 使い方</h2>
+      <h3>今日の日記を書く</h3>
+      <ul>
+        <li>一覧右下の <strong>「＋ 今日の日記」</strong>を押すと、今日の日付のファイル（例: <code>2026-07-23.md</code>）を新規作成して編集画面が開きます。フロントマターの <code>created</code> には自動で今日の日付が入ります。</li>
+        <li>今日のファイルが既にある場合、ボタンは <strong>「📖 今日の日記」</strong>になり、押すとその記事が開きます。</li>
+      </ul>
+      <h3>閲覧</h3>
+      <ul>
+        <li>一覧は日付の新しい順。カードをタップすると記事全文を Markdown 表示します。フロントマターは本文には出さず、日付・タグ・author のバッジとして表示します。</li>
+        <li>上部のタグチップで絞り込みできます。</li>
+        <li>ヘッダーの 🔄 で Dropbox から再読み込みします（Obsidian 側の変更を取り込むとき）。</li>
+      </ul>
+      <h3>編集</h3>
+      <ul>
+        <li>閲覧画面の <strong>「✏️ 編集」</strong>から。過去の記事も編集できます（<code>created</code> は元の日付を保持）。</li>
+        <li>タグはチップ式: 入力して <kbd>Enter</kbd> で追加、× で削除。</li>
+        <li><strong>保存</strong>ボタン（または <kbd>Cmd/Ctrl</kbd>+<kbd>S</kbd>）で Dropbox に書き込みます。</li>
+        <li>編集中の内容は約 1 秒ごとに端末内へ<strong>下書き自動保存</strong>されます（詳細は <a href="#conflict">6 章</a>）。</li>
+      </ul>
+      <h3>テーマ</h3>
+      <ul>
+        <li>ヘッダーの 🌙 / ☀️ でダーク / ライトを切り替えます（既定はダーク）。</li>
+      </ul>
+    </section>
+
+    <section id="data">
+      <h2>5. データ仕様</h2>
+      <h3>ファイル形式</h3>
+      <p>日記フォルダ直下の <code>YYYY-MM-DD.md</code> のみを日記として扱います（他のファイル・サブフォルダは無視）。保存されるファイルの形式:</p>
+      <pre><code>---
+created: 2026-07-23
+tags:
+  - 日記
+author: kiyohito
+---
+
+（本文 Markdown）</code></pre>
+      <ul>
+        <li><code>created</code>: 新規作成時にその日の日付を自動入力。既存記事の編集では元の値を保持。</li>
+        <li><code>tags</code>: 編集画面のチップで管理。インライン形式（<code>tags: [a, b]</code>）の既存ファイルも読み込めます（保存時はリスト形式に統一）。</li>
+        <li><code>author</code>: 新規作成時は設定値を使用。既存記事の値は保持。</li>
+        <li><strong>上記以外のキー（Obsidian が付けたものなど）は、そのままの行として保持して書き戻します。</strong></li>
+        <li>フロントマターのないファイルも閲覧でき、保存時にフロントマターが付与されます。</li>
+      </ul>
+      <h3>端末内に保存されるデータ（localStorage）</h3>
+      <table>
+        <tr><th>キー</th><th>内容</th></tr>
+        <tr><td><code>diary_dbx_app_key</code></td><td>Dropbox App Key</td></tr>
+        <tr><td><code>diary_dbx_tokens</code></td><td>アクセストークン / リフレッシュトークン / 有効期限</td></tr>
+        <tr><td><code>diary_folder_path</code></td><td>日記フォルダのパス</td></tr>
+        <tr><td><code>diary_author</code></td><td>author 設定値（初期値 kiyohito）</td></tr>
+        <tr><td><code>diary_default_tags</code></td><td>既定タグ（初期値 ["日記"]）</td></tr>
+        <tr><td><code>diary_theme</code></td><td>テーマ（dark / light）</td></tr>
+        <tr><td><code>diary_cache</code></td><td>記事キャッシュ（rev + 本文）。2 回目以降の起動を速くし、変更のあったファイルだけを再取得するために使用</td></tr>
+        <tr><td><code>diary_draft</code></td><td>編集中の下書き（未保存の本文・タグ）</td></tr>
+      </table>
+      <div class="note">日記の本体データはすべて Dropbox 上の .md ファイルです。localStorage はキャッシュ・設定のみで、消えても Dropbox から再取得できます。</div>
+    </section>
+
+    <section id="conflict">
+      <h2>6. 競合と下書き</h2>
+      <h3>上書き事故の防止（rev チェック）</h3>
+      <p>保存時は「編集を開いた時点のファイル版数（rev）」を指定して書き込みます。Dropbox 側（Obsidian や別端末）で先に変更されていた場合は保存がブロックされ、<strong>競合ダイアログ</strong>が出ます。</p>
+      <ul>
+        <li><strong>Dropbox 側を確認</strong>: 最新の内容を読み込んで表示します。自分の編集内容は下書きとして保持され、もう一度編集を開いたときに「復元しますか?」と提案されます。</li>
+        <li><strong>自分の編集で上書き</strong>: 最新版数を取得し直して、自分の編集内容で上書き保存します。</li>
+      </ul>
+      <h3>下書きの自動保存</h3>
+      <ul>
+        <li>編集中の本文とタグは約 1 秒ごとに端末内（localStorage）へ自動保存されます。保存に成功すると消去されます。</li>
+        <li>保存前にアプリを閉じたりリロードしても、次回起動時に編集の再開が提案されます。</li>
+        <li>下書きは 1 件のみ（最後に編集していた記事の分）です。</li>
+      </ul>
+    </section>
+
+    <section id="trouble">
+      <h2>7. トラブル対応</h2>
+      <table>
+        <tr><th>症状</th><th>原因と対処</th></tr>
+        <tr>
+          <td>連携ボタンを押すと Dropbox 側で <code>redirect_uri mismatch</code> 等のエラー</td>
+          <td>App Console の Redirect URIs と、設定画面に表示される URI が完全一致していない。設定画面の「URI をコピー」で正確な値を登録し直す。</td>
+        </tr>
+        <tr>
+          <td>「Dropbox 連携の有効期限が切れました」のバナーが出る</td>
+          <td>リフレッシュトークンが失効（Dropbox 側でアプリ許可を取り消した場合など）。設定から「Dropbox と連携する」をやり直す。</td>
+        </tr>
+        <tr>
+          <td>「日記フォルダが見つかりません」</td>
+          <td>フォルダパスの誤り、または Dropbox 側でフォルダを移動・改名した。設定の「フォルダを参照…」で選び直す。</td>
+        </tr>
+        <tr>
+          <td>連携ボタンを押しても何も起きない / 暗号 API のエラーが出る</td>
+          <td><code>file://</code> で直接開いている。OAuth と PKCE には HTTPS または <code>http://localhost</code> が必要。公開 URL かローカルサーバー経由で開く。</td>
+        </tr>
+        <tr>
+          <td>保存に失敗する（ネットワークエラー）</td>
+          <td>オフライン時は保存できません。編集内容は下書きに残っているので、回線復帰後にもう一度保存する。</td>
+        </tr>
+        <tr>
+          <td>Obsidian 側の変更が一覧に反映されない</td>
+          <td>ヘッダーの 🔄 で再読み込みする（起動時にも自動で同期されます）。</td>
+        </tr>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>8. セキュリティと注意事項</h2>
+      <ul>
+        <li>認証は OAuth 2 + PKCE。<strong>App secret は使わず、パスワードをアプリに入力することもありません。</strong></li>
+        <li>リフレッシュトークンはこの端末のブラウザ（localStorage）に保存されます。<strong>共有 PC・他人の端末では使わない</strong>でください。使わなくなった端末では設定の「連携解除」を実行するか、Dropbox の「接続済みアプリ」から許可を取り消してください。</li>
+        <li>App Key は秘密情報ではありませんが、自分用アプリのため他人に共有する意味はありません。</li>
+        <li>通信先は Dropbox 公式 API（<code>api.dropboxapi.com</code> / <code>content.dropboxapi.com</code>）と、Markdown 表示用 CDN（jsDelivr）のみです。</li>
+        <li>記事本文の表示は DOMPurify でサニタイズしています。</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
