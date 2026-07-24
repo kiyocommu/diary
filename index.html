@@ -547,10 +547,14 @@
       overflow: hidden;
       margin: auto;
     }
-    /* 設定ダイアログは項目数が多く、max-height だけでは高さが確保されない環境があるため明示的に height を指定する */
+    /* 設定・フォルダピッカーは max-height だけでは高さが確保されない環境があるため明示的に height を指定する */
     #settings-dialog {
       height: min(90vh, 760px);
       height: min(94dvh, 760px);
+    }
+    #picker-dialog {
+      height: min(90vh, 640px);
+      height: min(94dvh, 640px);
     }
     dialog:not([open]) { display: none; }
     body.light dialog { border-color: var(--border-base); }
@@ -854,7 +858,7 @@
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-24.settings-dialog-size';
+    const APP_VERSION = '2026-07-24.dialog-height-fix';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
