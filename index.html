@@ -547,6 +547,11 @@
       overflow: hidden;
       margin: auto;
     }
+    /* 設定ダイアログは項目数が多く、max-height だけでは高さが確保されない環境があるため明示的に height を指定する */
+    #settings-dialog {
+      height: min(90vh, 760px);
+      height: min(94dvh, 760px);
+    }
     dialog:not([open]) { display: none; }
     body.light dialog { border-color: var(--border-base); }
     dialog::backdrop { background: rgba(6, 8, 20, 0.65); }
