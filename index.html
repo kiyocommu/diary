@@ -511,11 +511,65 @@
       flex-wrap: wrap;
       align-items: center;
       gap: 6px;
-      padding: 10px 12px;
+      padding: 6px 12px;
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border-base);
       flex-shrink: 0;
     }
+    /* 挿入ツール（リンク / 画像 / パレット）。行を増やさずタグ行の右端に置く */
+    #edit-tools { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-tool {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      line-height: 1;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-tool svg { display: block; }
+    /* ai-blog と同じカラーホイール（conic-gradient の純 CSS。画像ファイル不要） */
+    .palette-wheel-icon {
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          #e85d75 0deg 60deg,
+          #f2a65a 60deg 120deg,
+          #f4d35e 120deg 180deg,
+          #58b368 180deg 240deg,
+          #3f88c5 240deg 300deg,
+          #8d6ccf 300deg 360deg
+        );
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+        0 0 0 1px rgba(0, 0, 0, 0.16);
+      display: block;
+      flex-shrink: 0;
+    }
+    body.light .btn-tool { background: #fff; }
+    @media (hover: hover) {
+      .btn-tool:hover { border-color: var(--accent-pink); color: var(--accent-pink); }
+    }
+    .btn-tool:active { border-color: var(--accent-pink); }
+    .btn-tool:disabled { opacity: 0.5; cursor: default; }
+    /* パレット設定済みを 🎨 ボタン下辺の色帯で示す（別途プレビュー領域を作らない） */
+    .tool-palette-bar {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 3px;
+      display: flex;
+    }
+    .tool-palette-bar span { flex: 1; }
     .chip-input-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1; min-width: 0; }
     .chip {
       display: inline-flex;
@@ -584,12 +638,21 @@
       overflow: hidden;
       margin: auto;
     }
-    /* 設定・フォルダピッカーは max-height だけでは高さが確保されない環境があるため明示的に height を指定する */
+    /* 項目数が多い・可変長リストを持つダイアログは max-height だけでは高さが確保されない環境があるため
+       明示的に height を指定する（リンク挿入は短文固定なので不要） */
     #settings-dialog {
       height: min(90vh, 760px);
       height: min(94dvh, 760px);
     }
     #picker-dialog {
+      height: min(90vh, 640px);
+      height: min(94dvh, 640px);
+    }
+    #image-dialog {
+      height: min(90vh, 620px);
+      height: min(94dvh, 620px);
+    }
+    #palette-dialog {
       height: min(90vh, 640px);
       height: min(94dvh, 640px);
     }
@@ -722,6 +785,141 @@
     @media (hover: hover) { #picker-list button:hover { background: var(--bg-deep); } }
     #picker-empty { font-size: 13px; color: var(--text-muted); padding: 20px 8px; text-align: center; }
 
+    /* ===== URL から画像を挿入 ===== */
+    #image-picker-body { margin-top: 14px; }
+    .img-picker-loading { color: var(--text-muted); font-size: 12px; text-align: center; padding: 20px; }
+    .img-picker-error { color: var(--accent-pink); font-size: 12px; text-align: center; padding: 16px; line-height: 1.7; }
+    body.light .img-picker-error { color: #a02040; }
+    .img-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      gap: 6px;
+    }
+    .img-picker-thumb {
+      width: 100%;
+      height: 88px;
+      object-fit: cover;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    body.light .img-picker-thumb { background: #fff; }
+    @media (hover: hover) { .img-picker-thumb:hover { border-color: var(--accent-pink); } }
+    .img-picker-thumb:active { border-color: var(--accent-pink); }
+
+    /* ===== パレット ===== */
+    #palette-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+    .palette-slot {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border-deep);
+      border-radius: 6px;
+      padding: 4px 6px 4px 4px;
+    }
+    body.light .palette-slot { background: #fff; border-color: var(--border-base); }
+    .palette-color-picker {
+      width: 26px;
+      height: 26px;
+      border: none;
+      border-radius: 4px;
+      padding: 1px;
+      cursor: pointer;
+      background: none;
+      flex-shrink: 0;
+      opacity: 0.3;
+      transition: opacity 0.15s;
+    }
+    .palette-color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+    .palette-color-picker::-webkit-color-swatch { border: none; border-radius: 3px; }
+    .palette-hex-input {
+      width: 74px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border-deep);
+      outline: none;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      letter-spacing: 0.05em;
+      padding: 2px;
+    }
+    .palette-hex-input:focus { border-bottom-color: var(--accent-pink); color: var(--accent-pink); }
+    .palette-hex-input::placeholder { color: var(--text-muted); }
+    body.light .palette-hex-input { border-bottom-color: var(--border-base); }
+    .palette-clear-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px;
+    }
+    @media (hover: hover) { .palette-clear-btn:hover { color: var(--accent-pink); } }
+
+    /* 抽出ボタンはホイールアイコン + ラベルの並び */
+    #btn-palette-extract { display: inline-flex; align-items: center; gap: 6px; }
+
+    #palette-swatches { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 10px; }
+    .palette-swatch {
+      width: 30px;
+      height: 30px;
+      border-radius: 5px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    body.light .palette-swatch { border-color: rgba(0, 0, 0, 0.1); }
+    .palette-swatch.selected { border-color: var(--accent-pink); }
+    .palette-swatch-msg { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
+    .palette-swatch-msg.error { color: var(--accent-pink); }
+    body.light .palette-swatch-msg.error { color: #a02040; }
+
+    #palette-preview-bar { min-height: 20px; margin-bottom: 4px; }
+    #palette-preview-bar .palette-block { height: 52px; }
+    .palette-preview-empty { font-size: 12px; color: var(--text-muted); }
+
+    /* 色帯（詳細・一覧カード共通）。
+       背景と同系の暗い色を含むと帯の範囲が分からなくなるため、内側に薄い枠を重ねる（レイアウトは動かさない） */
+    .palette-display {
+      display: flex;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+    }
+    body.light .palette-display { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14); }
+    .palette-block {
+      flex: 1;
+      min-width: 0;
+      height: 44px;
+      display: flex;
+      align-items: flex-end;
+      padding: 5px 6px;
+    }
+    .palette-block-hex {
+      font-size: 10px;
+      font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      line-height: 1;
+    }
+
+    /* 詳細画面の色帯 */
+    #detail-palette { margin-bottom: 16px; }
+    #detail-palette:empty { display: none; }
+
+    /* 一覧カードの色帯（hex は出さず細く） */
+    .entry-card-palette { margin-top: 10px; }
+    .entry-card-palette .palette-display { border-radius: 3px; }
+    .entry-card-palette .palette-block { height: 12px; padding: 0; }
+    .entry-card-palette .palette-block-hex { display: none; }
+
     /* ===== トースト ===== */
     #toast {
       position: fixed;
@@ -782,6 +980,7 @@
       </div>
       <div id="detail-scroll">
         <div id="detail-meta"></div>
+        <div id="detail-palette"></div>
         <article id="detail-body"></article>
       </div>
     </section>
@@ -797,6 +996,11 @@
       <div id="edit-tags-row">
         <div class="chip-input-wrap" id="edit-tags-box">
           <input type="text" class="chip-input" id="edit-tags-input" placeholder="タグを追加 (Enter)" autocomplete="off" aria-label="タグを追加">
+        </div>
+        <div id="edit-tools">
+          <button type="button" class="btn-tool" id="btn-insert-link" aria-label="リンクを挿入"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+          <button type="button" class="btn-tool" id="btn-insert-image" aria-label="URL から画像を挿入"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></button>
+          <button type="button" class="btn-tool" id="btn-edit-palette" aria-label="パレットを編集"><span class="palette-wheel-icon" aria-hidden="true"></span><span class="tool-palette-bar" id="edit-palette-mini" aria-hidden="true"></span></button>
         </div>
       </div>
       <textarea id="edit-body" placeholder="今日の出来事や考えたことを書く…" aria-label="日記本文"></textarea>
@@ -892,13 +1096,69 @@
     </div>
   </dialog>
 
+  <!-- ===== リンク挿入 ===== -->
+  <dialog id="link-dialog" aria-label="リンクを挿入">
+    <div class="dialog-header">リンクを挿入</div>
+    <div class="dialog-body" id="link-dialog-body" tabindex="-1">
+      <label class="form-label" for="link-url-input">URL</label>
+      <input type="url" class="form-input" id="link-url-input" placeholder="https://example.com" autocomplete="off" spellcheck="false" inputmode="url">
+      <label class="form-label" for="link-text-input">表示テキスト</label>
+      <input type="text" class="form-input" id="link-text-input" placeholder="省略すると URL をそのまま表示" autocomplete="off">
+      <div class="form-hint">本文のカーソル位置に <code>[テキスト](URL)</code> を挿入します。本文を選択してから開くと、その文字列が表示テキストに入ります。</div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-link-cancel">キャンセル</button>
+      <button type="button" class="btn-form accent" id="btn-link-insert">挿入</button>
+    </div>
+  </dialog>
+
+  <!-- ===== URL から画像を挿入 ===== -->
+  <dialog id="image-dialog" aria-label="URL から画像を挿入">
+    <div class="dialog-header">URL から画像を挿入</div>
+    <div class="dialog-body" id="image-dialog-body" tabindex="-1">
+      <label class="form-label" for="image-url-input">ページ URL</label>
+      <input type="url" class="form-input" id="image-url-input" placeholder="https://example.com/article" autocomplete="off" spellcheck="false" inputmode="url">
+      <div class="form-row">
+        <button type="button" class="btn-form accent" id="btn-image-fetch">画像を取得</button>
+      </div>
+      <div class="form-hint">ページ内の画像を一覧します。選ぶと本文のカーソル位置に <code>![](画像URL)</code> を挿入します。</div>
+      <div id="image-picker-body"></div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-image-close">閉じる</button>
+    </div>
+  </dialog>
+
+  <!-- ===== パレット編集 ===== -->
+  <dialog id="palette-dialog" aria-label="パレットを編集">
+    <div class="dialog-header">パレット（最大 7 色）</div>
+    <div class="dialog-body" id="palette-dialog-body" tabindex="-1">
+      <div id="palette-preview-bar"></div>
+      <span class="form-label">色（左のマスをタップして選択、または #RRGGBB を入力）</span>
+      <div id="palette-slots"></div>
+
+      <label class="form-label" for="palette-url-input">URL から抽出</label>
+      <input type="url" class="form-input" id="palette-url-input" placeholder="https://example.com" autocomplete="off" spellcheck="false" inputmode="url">
+      <div class="form-row">
+        <button type="button" class="btn-form" id="btn-palette-extract"><span class="palette-wheel-icon" aria-hidden="true"></span>URLから抽出</button>
+        <button type="button" class="btn-form" id="btn-palette-clear">すべてクリア</button>
+      </div>
+      <div id="palette-swatches" style="display: none;"></div>
+      <div class="form-hint">抽出した候補をタップすると、空いているスロットに入ります。</div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn-form" id="btn-palette-cancel">キャンセル</button>
+      <button type="button" class="btn-form accent" id="btn-palette-apply">適用</button>
+    </div>
+  </dialog>
+
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-24.standalone-height';
+    const APP_VERSION = '2026-07-27.tool-icons';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
@@ -913,6 +1173,15 @@
     const DIARY_FILE_RE = /^(\d{4}-\d{2}-\d{2})\.md$/i;
     const DOWNLOAD_CONCURRENCY = 4;
     const DRAFT_DEBOUNCE_MS = 1000;
+    const PALETTE_SLOTS = 7;
+    const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+    const PAGE_FETCH_TIMEOUT_MS = 8000;
+    // 外部ページ取得用の公開 CORS プロキシ（直接 fetch が CORS で失敗したときの代替）
+    const CORS_PROXIES = [
+      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+    ];
     const AUTH_URL = 'https://www.dropbox.com/oauth2/authorize';
     const TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
     const API_BASE = 'https://api.dropboxapi.com/2/';
@@ -1027,6 +1296,8 @@
     let activeTag = null;
     let currentKey = null;  // 詳細表示中エントリの key (path_lower)
     let edit = null;        // 編集状態
+    let editPalette = [];   // 編集中のパレット（editTagsChips と同じ位置づけ）
+    let lastFetchUrl = '';  // 画像取得 / カラー抽出で共有。日記のプライバシー上 localStorage には残さない
     let syncing = false;
     let saving = false;
     let navDepth = 0;
@@ -1039,6 +1310,48 @@
       if (!safeSaveJson(KEY_CACHE, cache)) {
         showToast('キャッシュの保存に失敗しました（容量不足の可能性）', 'error');
       }
+    }
+
+    // ===== パレット（色）ユーティリティ =====
+    // '#abc' 形式も 6 桁に展開する。不正値は空文字を返す。
+    function normHex(value) {
+      const s = String(value ?? '').trim();
+      if (HEX_RE.test(s)) return s.toUpperCase();
+      if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+        const [, r, g, b] = s;
+        return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+      }
+      return '';
+    }
+
+    // 背景色に対して読みやすい文字色を返す（輝度で反転）
+    function hexTextColor(hex) {
+      if (!HEX_RE.test(hex)) return '#ffffff';
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#1a1a2e' : '#ffffff';
+    }
+
+    // .md や下書き JSON など信頼できない入力を #RRGGBB の配列へ正規化する。
+    // buildPaletteBlocksHtml は色を style 属性へ直接埋めるため、必ずここを通した値だけを渡すこと。
+    function normalizePalette(value) {
+      if (!Array.isArray(value)) return [];
+      const out = [];
+      for (const v of value) {
+        if (typeof v !== 'string') continue;
+        const hex = normHex(v);
+        if (hex && !out.includes(hex)) out.push(hex);
+        if (out.length >= PALETTE_SLOTS) break;
+      }
+      return out;
+    }
+
+    // colors は normalizePalette 済み（/^#[0-9A-F]{6}$/）である前提
+    function buildPaletteBlocksHtml(colors) {
+      return `<div class="palette-display">${colors.map(c =>
+        `<div class="palette-block" style="background:${c}"><span class="palette-block-hex" style="color:${hexTextColor(c)}">${c}</span></div>`
+      ).join('')}</div>`;
     }
 
     // ===== フロントマター parse / serialize =====
@@ -1059,7 +1372,7 @@
       return s;
     }
 
-    // 既存 Obsidian ファイルの形式（created / tags リスト / author）に限定した簡易パーサ。
+    // 既存 Obsidian ファイルの形式（created / tags リスト / author / palette）に限定した簡易パーサ。
     // 未知キーは raw 行のまま extraLines に保持し、書き戻し時にそのまま再出力する。
     function parseFrontmatter(text) {
       const src = String(text ?? '').replace(/^\uFEFF/, '');
@@ -1072,7 +1385,7 @@
       if (endIdx < 0) return { meta: null, extraLines: [], body: src };
 
       const fmLines = lines.slice(1, endIdx);
-      const meta = { created: '', tags: [], author: '' };
+      const meta = { created: '', tags: [], author: '', palette: [] };
       const extraLines = [];
       let i = 0;
       while (i < fmLines.length) {
@@ -1101,6 +1414,26 @@
           }
           continue;
         }
+        if (key === 'palette') {
+          // 解釈できない値は未知キーと同じく生行のまま保持する（データ欠落の防止）
+          const raw = [line];
+          let j = i + 1;
+          let items = [];
+          if (rest.startsWith('[')) {
+            items = rest.replace(/^\[/, '').replace(/\]$/, '').split(',').map(s => stripQuotes(s));
+          } else if (rest === '') {
+            while (j < fmLines.length && /^\s+-\s*\S?/.test(fmLines[j])) {
+              raw.push(fmLines[j]);
+              items.push(stripQuotes(fmLines[j].replace(/^\s+-\s*/, '')));
+              j++;
+            }
+          }
+          const colors = normalizePalette(items);
+          if (colors.length > 0) meta.palette = colors;
+          else for (const l of raw) extraLines.push(l);
+          i = j;
+          continue;
+        }
         // 未知キー: 行とそれに続くインデント行（ネストした値）をそのまま保持
         extraLines.push(line);
         i++;
@@ -1124,6 +1457,13 @@
         for (const t of tags) lines.push('  - ' + quoteYamlIfNeeded(t));
       }
       lines.push('author: ' + quoteYamlIfNeeded(meta.author || DEFAULT_AUTHOR));
+      // 未設定なら 1 行も書き出さない（既存ファイルの往復を変えないため）。
+      // '#' 始まりは YAML でコメント扱いになるため quoteYamlIfNeeded で必ずクォートする。
+      const palette = normalizePalette(meta.palette);
+      if (palette.length > 0) {
+        lines.push('palette:');
+        for (const c of palette) lines.push('  - ' + quoteYamlIfNeeded(c));
+      }
       for (const l of (extraLines || [])) lines.push(l);
       lines.push('---');
       return lines.join('\n') + '\n\n' + String(body || '').replace(/^\n+/, '');
@@ -1572,11 +1912,13 @@
         const isToday = en.date === today;
         const tagsHtml = (en.meta && en.meta.tags || [])
           .map(t => `<span class="tag-badge">${escapeHtml(t)}</span>`).join('');
+        const palette = normalizePalette(en.meta && en.meta.palette);
         cards.push(`
           <div class="entry-card${isToday ? ' today' : ''}" data-key="${escapeHtml(en.key)}" role="button" tabindex="0">
             <div class="entry-card-date">${escapeHtml(formatDateJa(en.date))}${isToday ? '<span class="today-badge">TODAY</span>' : ''}</div>
             <div class="entry-card-excerpt">${escapeHtml(makeExcerpt(en.body)) || '（本文なし）'}</div>
             ${tagsHtml ? `<div class="entry-card-tags">${tagsHtml}</div>` : ''}
+            ${palette.length > 0 ? `<div class="entry-card-palette">${buildPaletteBlocksHtml(palette)}</div>` : ''}
           </div>`);
       }
       const emptyState = document.getElementById('empty-state');
@@ -1616,6 +1958,10 @@
       for (const t of (meta.tags || [])) html += `<span class="tag-badge">${escapeHtml(t)}</span>`;
       if (meta.author) html += `<span class="meta-author">✍️ ${escapeHtml(meta.author)}</span>`;
       metaEl.innerHTML = html;
+
+      const palette = normalizePalette(meta.palette);
+      document.getElementById('detail-palette').innerHTML =
+        palette.length > 0 ? buildPaletteBlocksHtml(palette) : '';
 
       const bodyEl = document.getElementById('detail-body');
       if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
@@ -1697,6 +2043,340 @@
     const editTagsChips = createChipInput('edit-tags-box', 'edit-tags-input');
     const settingsTagsChips = createChipInput('settings-tags-box', 'settings-tags-input');
 
+    // ===== 本文への挿入 =====
+    // ダイアログを開くとフォーカスが textarea から外れるため、開く直前の選択範囲を控えておく
+    let bodySelection = { start: 0, end: 0 };
+
+    function captureBodySelection() {
+      const ta = document.getElementById('edit-body');
+      const len = ta.value.length;
+      bodySelection = {
+        start: Number.isInteger(ta.selectionStart) ? ta.selectionStart : len,
+        end: Number.isInteger(ta.selectionEnd) ? ta.selectionEnd : len
+      };
+    }
+
+    function selectedBodyText() {
+      const ta = document.getElementById('edit-body');
+      return ta.value.slice(bodySelection.start, bodySelection.end);
+    }
+
+    // 控えた選択範囲を text で置換し、キャレットを末尾に折りたたむ。
+    // value への代入は input イベントを発火しないため、下書き保存を明示的に呼ぶ。
+    function replaceBodySelection(text) {
+      const ta = document.getElementById('edit-body');
+      const { start, end } = bodySelection;
+      ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+      const pos = start + text.length;
+      bodySelection = { start: pos, end: pos };
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+      document.getElementById('edit-status').textContent = '';
+      scheduleDraftSave();
+    }
+
+    function isHttpUrl(url) {
+      try {
+        const protocol = new URL(url).protocol;
+        return protocol === 'http:' || protocol === 'https:';
+      } catch {
+        return false;
+      }
+    }
+
+    // スキーム省略（example.com）は https:// を補う。
+    // javascript: 等はスキームありなので補完されず、isHttpUrl で弾かれる。
+    function normalizeUrlInput(value) {
+      const s = String(value ?? '').trim();
+      if (!s) return '';
+      const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(s) ? s : 'https://' + s;
+      return isHttpUrl(withScheme) ? withScheme : '';
+    }
+
+    function mdEscapeText(s) { return String(s).replace(/([\[\]])/g, '\\$1'); }
+    function mdEscapeUrl(s) { return String(s).replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/\s/g, '%20'); }
+
+    function insertLinkFromDialog() {
+      const url = normalizeUrlInput(document.getElementById('link-url-input').value);
+      if (!url) {
+        showToast('http(s) で始まる URL を入力してください', 'error');
+        return;
+      }
+      const label = document.getElementById('link-text-input').value.trim();
+      document.getElementById('link-dialog').close();
+      replaceBodySelection(`[${mdEscapeText(label || url)}](${mdEscapeUrl(url)})`);
+    }
+
+    // ===== 外部ページの取得（画像 / カラー抽出で共用） =====
+    // まず直接 fetch（CORS 許可サイト向け）、失敗したら公開 CORS プロキシを順に試す
+    async function fetchPageHtml(pageUrl) {
+      try {
+        const res = await fetch(pageUrl, { signal: AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS) });
+        if (res.ok) return await res.text();
+      } catch (err) {
+        console.warn('直接取得に失敗（プロキシを試します）', err);
+      }
+      for (const proxyFn of CORS_PROXIES) {
+        try {
+          const res = await fetch(proxyFn(pageUrl), { signal: AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS) });
+          if (res.ok) return await res.text();
+        } catch (err) {
+          console.warn('CORS プロキシ経由の取得に失敗', err);
+        }
+      }
+      throw new Error('取得できませんでした（ネットワークエラーまたはサイトのアクセス制限）');
+    }
+
+    // DOMParser はスクリプトを実行せず外部リソースも読み込まないため、取得した HTML の解析に使ってよい
+    function extractImageUrls(html, baseUrl) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const results = [];
+      const ogImage = doc.querySelector('meta[property="og:image"]');
+      const ogContent = ogImage && ogImage.getAttribute('content');
+      if (ogContent && /^https?:\/\//i.test(ogContent)) results.push(ogContent);
+      doc.querySelectorAll('img[src]').forEach(img => {
+        let src = img.getAttribute('src');
+        if (!src || src.startsWith('data:')) return;
+        try { src = new URL(src, baseUrl).href; } catch { return; }
+        if (/^https?:\/\//i.test(src)) results.push(src);
+      });
+      return [...new Set(results)];
+    }
+
+    async function fetchPageImages(pageUrl) {
+      return extractImageUrls(await fetchPageHtml(pageUrl), pageUrl);
+    }
+
+    // ページの theme-color / インライン style から使われている色を頻度順に集める
+    async function extractColorsFromUrl(pageUrl) {
+      const html = await fetchPageHtml(pageUrl);
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const counts = new Map();
+
+      const addHex = raw => {
+        let hex = String(raw).toUpperCase();
+        if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        if (!HEX_RE.test(hex)) return;
+        const lum = (parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16)) / 3;
+        if (lum <= 15 || lum >= 240) return;   // ほぼ黒・ほぼ白は候補から外す
+        counts.set(hex, (counts.get(hex) || 0) + 1);
+      };
+      const addRgb = (r, g, b) => {
+        addHex('#' + [r, g, b].map(n => Number(n).toString(16).padStart(2, '0')).join(''));
+      };
+      const scan = text => {
+        const hexRe = /#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g;
+        const rgbRe = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+        let m;
+        while ((m = hexRe.exec(text)) !== null) addHex('#' + m[1]);
+        while ((m = rgbRe.exec(text)) !== null) addRgb(m[1], m[2], m[3]);
+      };
+
+      const themeColor = doc.querySelector('meta[name="theme-color"]');
+      const themeValue = themeColor && normHex(themeColor.getAttribute('content') || '');
+      if (themeValue) counts.set(themeValue, 9999);   // theme-color は最優先
+
+      doc.querySelectorAll('style').forEach(el => scan(el.textContent || ''));
+      [...doc.querySelectorAll('[style]')].slice(0, 500).forEach(el => scan(el.getAttribute('style') || ''));
+
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([hex]) => hex);
+    }
+
+    // ===== 画像ピッカー =====
+    function showImagePickerMessage(cls, msg) {
+      document.getElementById('image-picker-body').innerHTML = `<div class="${cls}">${escapeHtml(msg)}</div>`;
+    }
+
+    function showImagePickerGrid(urls) {
+      const body = document.getElementById('image-picker-body');
+      const grid = document.createElement('div');
+      grid.className = 'img-picker-grid';
+      for (const imgUrl of urls) {
+        const img = document.createElement('img');
+        img.className = 'img-picker-thumb';
+        img.src = imgUrl;
+        img.loading = 'lazy';
+        img.alt = '';
+        img.title = imgUrl;
+        img.dataset.imgUrl = imgUrl;
+        img.addEventListener('error', () => { img.style.display = 'none'; });
+        grid.appendChild(img);
+      }
+      body.innerHTML = '';
+      body.appendChild(grid);
+    }
+
+    async function runImageFetch() {
+      const url = normalizeUrlInput(document.getElementById('image-url-input').value);
+      if (!url) {
+        showImagePickerMessage('img-picker-error', 'https:// で始まる URL を入力してください');
+        return;
+      }
+      lastFetchUrl = url;
+      const btn = document.getElementById('btn-image-fetch');
+      btn.disabled = true;
+      showImagePickerMessage('img-picker-loading', '🔍 画像を取得中…');
+      try {
+        const urls = await fetchPageImages(url);
+        if (urls.length === 0) showImagePickerMessage('img-picker-error', '画像が見つかりませんでした');
+        else showImagePickerGrid(urls);
+      } catch (err) {
+        console.warn('画像の取得に失敗', err);
+        showImagePickerMessage('img-picker-error', '取得失敗: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ===== パレット編集フォーム =====
+    function renderEditPaletteMini() {
+      document.getElementById('edit-palette-mini').innerHTML =
+        editPalette.map(c => `<span style="background:${c}"></span>`).join('');
+    }
+
+    function buildPaletteSlots() {
+      const container = document.getElementById('palette-slots');
+      if (container.children.length > 0) return;   // DOM は初回のみ組み立てる
+      for (let i = 0; i < PALETTE_SLOTS; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'palette-slot';
+        slot.dataset.index = String(i);
+
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.className = 'palette-color-picker';
+        picker.value = '#1a1a2e';
+        picker.setAttribute('aria-label', `色 ${i + 1} を選択`);
+
+        const text = document.createElement('input');
+        text.type = 'text';
+        text.className = 'palette-hex-input';
+        text.maxLength = 7;
+        text.placeholder = '#RRGGBB';
+        text.autocomplete = 'off';
+        text.spellcheck = false;
+        text.setAttribute('aria-label', `色 ${i + 1} の HEX 値`);
+
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'palette-clear-btn';
+        clearBtn.textContent = '✕';
+        clearBtn.setAttribute('aria-label', `色 ${i + 1} をクリア`);
+
+        picker.addEventListener('input', () => {
+          text.value = picker.value.toUpperCase();
+          picker.style.opacity = '1';
+          updatePalettePreview();
+        });
+        text.addEventListener('input', () => {
+          const v = normHex(text.value);
+          picker.value = v || '#1a1a2e';
+          picker.style.opacity = v ? '1' : '0.3';
+          updatePalettePreview();
+        });
+        text.addEventListener('blur', () => {
+          const v = normHex(text.value);
+          text.value = v;
+          if (v) picker.value = v;
+          updatePalettePreview();
+        });
+        clearBtn.addEventListener('click', () => {
+          text.value = '';
+          picker.value = '#1a1a2e';
+          picker.style.opacity = '0.3';
+          updatePalettePreview();
+        });
+
+        slot.append(picker, text, clearBtn);
+        container.appendChild(slot);
+      }
+    }
+
+    function setPaletteForm(colors) {
+      const slots = document.querySelectorAll('#palette-slots .palette-slot');
+      slots.forEach((slot, i) => {
+        const hex = colors[i] || '';
+        const text = slot.querySelector('.palette-hex-input');
+        const picker = slot.querySelector('.palette-color-picker');
+        text.value = hex;
+        picker.value = hex || '#1a1a2e';
+        picker.style.opacity = hex ? '1' : '0.3';
+      });
+    }
+
+    function readPaletteFromForm() {
+      const out = [];
+      for (const input of document.querySelectorAll('#palette-slots .palette-hex-input')) {
+        const hex = normHex(input.value);
+        if (hex && !out.includes(hex)) out.push(hex);
+      }
+      return out;
+    }
+
+    function updatePalettePreview() {
+      const colors = readPaletteFromForm();
+      document.getElementById('palette-preview-bar').innerHTML = colors.length === 0
+        ? '<span class="palette-preview-empty">色が設定されていません</span>'
+        : buildPaletteBlocksHtml(colors);
+    }
+
+    function renderPaletteSwatches(colors) {
+      const box = document.getElementById('palette-swatches');
+      box.innerHTML = '';
+      box.style.display = 'flex';
+      for (const color of colors) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'palette-swatch';
+        btn.style.background = color;
+        btn.title = color;
+        btn.setAttribute('aria-label', `${color} を追加`);
+        btn.addEventListener('click', () => {
+          const inputs = document.querySelectorAll('#palette-slots .palette-hex-input');
+          for (const input of inputs) {
+            if (input.value.trim()) continue;
+            input.value = color;
+            const picker = input.parentElement.querySelector('.palette-color-picker');
+            picker.value = color;
+            picker.style.opacity = '1';
+            updatePalettePreview();
+            btn.classList.add('selected');
+            return;
+          }
+          showToast('パレットスロットが全て埋まっています', 'error');
+        });
+        box.appendChild(btn);
+      }
+    }
+
+    function showPaletteSwatchMessage(msg, isError) {
+      const box = document.getElementById('palette-swatches');
+      box.style.display = 'flex';
+      box.innerHTML = `<span class="palette-swatch-msg${isError ? ' error' : ''}">${escapeHtml(msg)}</span>`;
+    }
+
+    async function runPaletteExtract() {
+      const url = normalizeUrlInput(document.getElementById('palette-url-input').value);
+      if (!url) {
+        showPaletteSwatchMessage('https:// で始まる URL を入力してください', true);
+        return;
+      }
+      lastFetchUrl = url;
+      const btn = document.getElementById('btn-palette-extract');
+      btn.disabled = true;
+      showPaletteSwatchMessage('🔍 カラーを抽出中…', false);
+      try {
+        const colors = await extractColorsFromUrl(url);
+        if (colors.length === 0) showPaletteSwatchMessage('カラーが見つかりませんでした', true);
+        else renderPaletteSwatches(colors);
+      } catch (err) {
+        console.warn('カラーの抽出に失敗', err);
+        showPaletteSwatchMessage('取得失敗: ' + err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     // ===== 下書き =====
     let draftTimer = null;
     function loadDraft() {
@@ -1723,6 +2403,7 @@
           baseRev: edit.baseRev,
           body: document.getElementById('edit-body').value,
           tags: editTagsChips.get(),
+          palette: editPalette,
           savedAt: new Date().toISOString()
         });
         document.getElementById('edit-status').textContent = '下書き保存済み';
@@ -1732,15 +2413,17 @@
     // ===== 編集 =====
     function beginEdit(state, push) {
       edit = state;
+      editPalette = (state.palette || []).slice();
       document.getElementById('edit-title').textContent = formatDateJa(state.date);
       document.getElementById('edit-body').value = state.body;
       editTagsChips.set(state.tags);
+      renderEditPaletteMini();
       document.getElementById('edit-status').textContent = '';
       navigateTo('edit', push !== false);
 
       // 同じ記事の未保存下書きがあれば復元を提案
       const draft = loadDraft();
-      if (draft && draft.path === state.path && (draft.body !== state.body || JSON.stringify(normalizeTags(draft.tags) || []) !== JSON.stringify(state.tags))) {
+      if (draft && draft.path === state.path && (draft.body !== state.body || JSON.stringify(normalizeTags(draft.tags) || []) !== JSON.stringify(state.tags) || (Array.isArray(draft.palette) && JSON.stringify(normalizePalette(draft.palette)) !== JSON.stringify(editPalette)))) {
         const dateText = draft.savedAt ? new Date(draft.savedAt).toLocaleString('ja-JP') : '';
         document.getElementById('draft-dialog-text').textContent =
           `この記事には未保存の下書きがあります${dateText ? `（${dateText}）` : ''}。復元しますか?`;
@@ -1761,6 +2444,7 @@
         extraLines: entry.extraLines || [],
         baseRev: entry.rev,
         tags: (meta.tags || []).slice(),
+        palette: normalizePalette(meta.palette),
         body: entry.body
       }, push);
     }
@@ -1779,6 +2463,7 @@
         extraLines: [],
         baseRev: null,
         tags: settings.defaultTags.slice(),
+        palette: [],
         body: ''
       });
     }
@@ -1787,6 +2472,7 @@
       if (!edit) return false;
       const body = document.getElementById('edit-body').value;
       if (body !== edit.body) return true;
+      if (JSON.stringify(editPalette) !== JSON.stringify(edit.palette || [])) return true;
       return JSON.stringify(editTagsChips.get()) !== JSON.stringify(edit.tags);
     }
 
@@ -1804,7 +2490,7 @@
       document.getElementById('edit-status').textContent = '保存中…';
       try {
         const body = document.getElementById('edit-body').value;
-        const meta = { created: edit.created, tags: editTagsChips.get(), author: edit.author };
+        const meta = { created: edit.created, tags: editTagsChips.get(), author: edit.author, palette: editPalette };
         const content = serializeFrontmatter(meta, edit.extraLines, body);
         let mode = edit.baseRev ? { '.tag': 'update', update: edit.baseRev } : 'add';
         if (overwrite) {
@@ -2112,6 +2798,77 @@
       document.getElementById('edit-tags-input').addEventListener('input', scheduleDraftSave);
       document.getElementById('edit-tags-box').addEventListener('click', scheduleDraftSave);
 
+      // リンク挿入
+      document.getElementById('btn-insert-link').addEventListener('click', () => {
+        captureBodySelection();
+        document.getElementById('edit-body').blur();   // モーダル表示中にキーボードを残さない
+        document.getElementById('link-url-input').value = '';
+        document.getElementById('link-text-input').value = selectedBodyText().replace(/\n/g, ' ').trim();
+        document.getElementById('link-dialog').showModal();
+        document.getElementById('link-dialog-body').focus();
+      });
+      document.getElementById('btn-link-cancel').addEventListener('click', () => document.getElementById('link-dialog').close());
+      document.getElementById('btn-link-insert').addEventListener('click', insertLinkFromDialog);
+      for (const id of ['link-url-input', 'link-text-input']) {
+        document.getElementById(id).addEventListener('keydown', e => {
+          if (e.isComposing || e.keyCode === 229) return;   // IME 変換中は無視
+          if (e.key === 'Enter') { e.preventDefault(); insertLinkFromDialog(); }
+        });
+      }
+
+      // URL から画像を挿入
+      document.getElementById('btn-insert-image').addEventListener('click', () => {
+        captureBodySelection();
+        document.getElementById('edit-body').blur();
+        document.getElementById('image-url-input').value = lastFetchUrl;
+        document.getElementById('image-picker-body').innerHTML = '';
+        document.getElementById('image-dialog').showModal();
+        document.getElementById('image-dialog-body').focus();
+      });
+      document.getElementById('btn-image-fetch').addEventListener('click', () => { runImageFetch(); });
+      document.getElementById('image-url-input').addEventListener('keydown', e => {
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') { e.preventDefault(); runImageFetch(); }
+      });
+      document.getElementById('image-picker-body').addEventListener('click', e => {
+        const img = e.target.closest('.img-picker-thumb');
+        if (!img) return;
+        document.getElementById('image-dialog').close();
+        replaceBodySelection(`![](${mdEscapeUrl(img.dataset.imgUrl)})`);
+      });
+      document.getElementById('btn-image-close').addEventListener('click', () => document.getElementById('image-dialog').close());
+
+      // パレット編集
+      document.getElementById('btn-edit-palette').addEventListener('click', () => {
+        document.getElementById('edit-body').blur();
+        buildPaletteSlots();
+        setPaletteForm(editPalette);
+        updatePalettePreview();
+        document.getElementById('palette-url-input').value = lastFetchUrl;
+        const sw = document.getElementById('palette-swatches');
+        sw.style.display = 'none';
+        sw.innerHTML = '';
+        document.getElementById('palette-dialog').showModal();
+        document.getElementById('palette-dialog-body').focus();
+      });
+      document.getElementById('btn-palette-apply').addEventListener('click', () => {
+        editPalette = readPaletteFromForm();
+        document.getElementById('palette-dialog').close();
+        renderEditPaletteMini();
+        document.getElementById('edit-status').textContent = '';
+        scheduleDraftSave();   // フォーム操作では input が本文へ飛ばないため明示的に
+      });
+      document.getElementById('btn-palette-cancel').addEventListener('click', () => document.getElementById('palette-dialog').close());
+      document.getElementById('btn-palette-clear').addEventListener('click', () => {
+        setPaletteForm([]);
+        updatePalettePreview();
+      });
+      document.getElementById('btn-palette-extract').addEventListener('click', () => { runPaletteExtract(); });
+      document.getElementById('palette-url-input').addEventListener('keydown', e => {
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') { e.preventDefault(); runPaletteExtract(); }
+      });
+
       document.addEventListener('keydown', e => {
         if (screen === 'edit' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
@@ -2186,6 +2943,11 @@
         if (draft && edit && draft.path === edit.path) {
           document.getElementById('edit-body').value = draft.body;
           editTagsChips.set(draft.tags);
+          // palette を持たない旧形式の下書きでは、ファイル由来の値をそのまま保つ
+          if (Array.isArray(draft.palette)) {
+            editPalette = normalizePalette(draft.palette);
+            renderEditPaletteMini();
+          }
           document.getElementById('edit-status').textContent = '下書きを復元しました';
         }
       });
@@ -2243,6 +3005,7 @@
             extraLines: Array.isArray(draft.extraLines) ? draft.extraLines : [],
             baseRev: null,
             tags: normalizeTags(draft.tags) || settings.defaultTags.slice(),
+            palette: normalizePalette(draft.palette),
             body: ''
           });
         } else if (dateText) {
