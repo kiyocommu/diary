@@ -562,7 +562,7 @@
     }
     .btn-tool:active { border-color: var(--accent-pink); }
     .btn-tool:disabled { opacity: 0.5; cursor: default; }
-    /* パレット設定済みを 🎨 ボタン下辺の色帯で示す（別途プレビュー領域を作らない） */
+    /* パレット設定済みをカラーホイールボタン下辺の色帯で示す（別途プレビュー領域を作らない） */
     .tool-palette-bar {
       position: absolute;
       left: 0; right: 0; bottom: 0;
@@ -1158,7 +1158,7 @@
     'use strict';
 
     // ===== 定数 =====
-    const APP_VERSION = '2026-07-27.tool-icons';
+    const APP_VERSION = '2026-07-27.review-fixes';
     const KEY_APP_KEY = 'diary_dbx_app_key';
     const KEY_TOKENS = 'diary_dbx_tokens';
     const KEY_FOLDER = 'diary_folder_path';
@@ -1415,7 +1415,8 @@
           continue;
         }
         if (key === 'palette') {
-          // 解釈できない値は未知キーと同じく生行のまま保持する（データ欠落の防止）
+          // 解釈できない値を1つでも含む場合（有効色との混在も含む）は、
+          // 未知キーと同じくブロック全体を生行のまま保持する（保存時のデータ欠落の防止）
           const raw = [line];
           let j = i + 1;
           let items = [];
@@ -1428,8 +1429,12 @@
               j++;
             }
           }
+          // 全項目が hex として解釈でき、上限（7 色）にも収まるときだけ採用する。
+          // 上限超えを採用すると 8 色目以降が保存時に消えるため、これも生行保持に倒す。
+          const allInterpretable = items.length > 0 && items.length <= PALETTE_SLOTS &&
+            items.every(v => !!normHex(v));
           const colors = normalizePalette(items);
-          if (colors.length > 0) meta.palette = colors;
+          if (allInterpretable && colors.length > 0) meta.palette = colors;
           else for (const l of raw) extraLines.push(l);
           i = j;
           continue;
@@ -1446,6 +1451,19 @@
       return { meta, extraLines, body };
     }
 
+    // extraLines 内に生行のまま保持していた palette ブロック（palette: 行と直後の - 項目行）を除去する
+    function stripRawPaletteLines(extraLines) {
+      const out = [];
+      let inPalette = false;
+      for (const l of extraLines) {
+        if (/^palette\s*:/.test(l)) { inPalette = true; continue; }
+        if (inPalette && /^\s+-/.test(l)) continue;
+        inPalette = false;
+        out.push(l);
+      }
+      return out;
+    }
+
     function serializeFrontmatter(meta, extraLines, body) {
       const lines = ['---'];
       lines.push('created: ' + (meta.created || todayStr()));
@@ -1460,11 +1478,15 @@
       // 未設定なら 1 行も書き出さない（既存ファイルの往復を変えないため）。
       // '#' 始まりは YAML でコメント扱いになるため quoteYamlIfNeeded で必ずクォートする。
       const palette = normalizePalette(meta.palette);
+      let extras = extraLines || [];
       if (palette.length > 0) {
         lines.push('palette:');
         for (const c of palette) lines.push('  - ' + quoteYamlIfNeeded(c));
+        // 生行として保持していた旧 palette ブロックが残っていると palette キーが二重になるため、
+        // ユーザーがアプリで明示的に設定した値で置き換える
+        extras = stripRawPaletteLines(extras);
       }
-      for (const l of (extraLines || [])) lines.push(l);
+      for (const l of extras) lines.push(l);
       lines.push('---');
       return lines.join('\n') + '\n\n' + String(body || '').replace(/^\n+/, '');
     }
@@ -1748,8 +1770,8 @@
 
     async function syncEntries(options = {}) {
       if (syncing) return;
-      if (!isLinked() || settings.folderPath === null) { renderAll(); return; }
-      if (!settings.folderPath && settings.folderPath !== '') { renderAll(); return; }
+      // 空文字は「フォルダ未設定」。空パスで list_folder を呼ぶと Dropbox ルート全体を同期してしまうため除外する
+      if (!isLinked() || !settings.folderPath) { renderAll(); return; }
       syncing = true;
       setSyncStatus('同期中…');
       document.getElementById('btn-sync').classList.add('syncing');
@@ -2206,6 +2228,9 @@
       body.appendChild(grid);
     }
 
+    // ダイアログを閉じた/取得をやり直した後に、古いリクエストの結果を表示しないための世代 ID
+    let imageFetchSeq = 0;
+
     async function runImageFetch() {
       const url = normalizeUrlInput(document.getElementById('image-url-input').value);
       if (!url) {
@@ -2213,18 +2238,21 @@
         return;
       }
       lastFetchUrl = url;
+      const seq = ++imageFetchSeq;
       const btn = document.getElementById('btn-image-fetch');
       btn.disabled = true;
       showImagePickerMessage('img-picker-loading', '🔍 画像を取得中…');
       try {
         const urls = await fetchPageImages(url);
+        if (seq !== imageFetchSeq) return;   // 閉じられた/やり直された取得の結果は捨てる
         if (urls.length === 0) showImagePickerMessage('img-picker-error', '画像が見つかりませんでした');
         else showImagePickerGrid(urls);
       } catch (err) {
         console.warn('画像の取得に失敗', err);
+        if (seq !== imageFetchSeq) return;
         showImagePickerMessage('img-picker-error', '取得失敗: ' + err.message);
       } finally {
-        btn.disabled = false;
+        if (seq === imageFetchSeq) btn.disabled = false;
       }
     }
 
@@ -2355,6 +2383,9 @@
       box.innerHTML = `<span class="palette-swatch-msg${isError ? ' error' : ''}">${escapeHtml(msg)}</span>`;
     }
 
+    // ダイアログを閉じた/抽出をやり直した後に、古いリクエストの結果を表示しないための世代 ID
+    let paletteExtractSeq = 0;
+
     async function runPaletteExtract() {
       const url = normalizeUrlInput(document.getElementById('palette-url-input').value);
       if (!url) {
@@ -2362,18 +2393,21 @@
         return;
       }
       lastFetchUrl = url;
+      const seq = ++paletteExtractSeq;
       const btn = document.getElementById('btn-palette-extract');
       btn.disabled = true;
       showPaletteSwatchMessage('🔍 カラーを抽出中…', false);
       try {
         const colors = await extractColorsFromUrl(url);
+        if (seq !== paletteExtractSeq) return;   // 閉じられた/やり直された抽出の結果は捨てる
         if (colors.length === 0) showPaletteSwatchMessage('カラーが見つかりませんでした', true);
         else renderPaletteSwatches(colors);
       } catch (err) {
         console.warn('カラーの抽出に失敗', err);
+        if (seq !== paletteExtractSeq) return;
         showPaletteSwatchMessage('取得失敗: ' + err.message, true);
       } finally {
-        btn.disabled = false;
+        if (seq === paletteExtractSeq) btn.disabled = false;
       }
     }
 
@@ -2388,24 +2422,30 @@
     }
     function clearDraft() { try { localStorage.removeItem(KEY_DRAFT); } catch { /* 消せなくても次の保存で上書きされる */ } }
 
+    // debounce を待たずに即時保存する（競合時の退避などタイマーが間に合わない場面用）
+    function saveDraftNow() {
+      if (!edit) return;
+      safeSaveJson(KEY_DRAFT, {
+        path: edit.path,
+        isNew: edit.isNew,
+        date: edit.date,
+        created: edit.created,
+        author: edit.author,
+        extraLines: edit.extraLines,
+        baseRev: edit.baseRev,
+        body: document.getElementById('edit-body').value,
+        tags: editTagsChips.get(),
+        palette: editPalette,
+        savedAt: new Date().toISOString()
+      });
+    }
+
     function scheduleDraftSave() {
       if (!edit) return;
       if (draftTimer) clearTimeout(draftTimer);
       draftTimer = setTimeout(() => {
         if (!edit) return;
-        safeSaveJson(KEY_DRAFT, {
-          path: edit.path,
-          isNew: edit.isNew,
-          date: edit.date,
-          created: edit.created,
-          author: edit.author,
-          extraLines: edit.extraLines,
-          baseRev: edit.baseRev,
-          body: document.getElementById('edit-body').value,
-          tags: editTagsChips.get(),
-          palette: editPalette,
-          savedAt: new Date().toISOString()
-        });
+        saveDraftNow();
         document.getElementById('edit-status').textContent = '下書き保存済み';
       }, DRAFT_DEBOUNCE_MS);
     }
@@ -2520,6 +2560,8 @@
         showToast('保存しました');
       } catch (err) {
         if (err.summary && err.summary.includes('conflict')) {
+          // 「Dropbox 側を確認」で edit が破棄されても編集内容を失わないよう、debounce を待たず即時退避する
+          saveDraftNow();
           document.getElementById('conflict-dialog').showModal();
         } else {
           console.warn('保存に失敗', err);
@@ -2837,6 +2879,10 @@
         replaceBodySelection(`![](${mdEscapeUrl(img.dataset.imgUrl)})`);
       });
       document.getElementById('btn-image-close').addEventListener('click', () => document.getElementById('image-dialog').close());
+      document.getElementById('image-dialog').addEventListener('close', () => {
+        imageFetchSeq++;   // 取得中に閉じた場合、完了後の結果を次回表示に流入させない
+        document.getElementById('btn-image-fetch').disabled = false;
+      });
 
       // パレット編集
       document.getElementById('btn-edit-palette').addEventListener('click', () => {
@@ -2859,6 +2905,10 @@
         scheduleDraftSave();   // フォーム操作では input が本文へ飛ばないため明示的に
       });
       document.getElementById('btn-palette-cancel').addEventListener('click', () => document.getElementById('palette-dialog').close());
+      document.getElementById('palette-dialog').addEventListener('close', () => {
+        paletteExtractSeq++;   // 抽出中に閉じた場合、完了後の結果を次回表示に流入させない
+        document.getElementById('btn-palette-extract').disabled = false;
+      });
       document.getElementById('btn-palette-clear').addEventListener('click', () => {
         setPaletteForm([]);
         updatePalettePreview();
@@ -2872,6 +2922,8 @@
       document.addEventListener('keydown', e => {
         if (screen === 'edit' && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
+          // 挿入ツール等のダイアログ表示中に保存すると編集画面ごと閉じてしまうため無効化する
+          if (document.querySelector('dialog[open]')) return;
           saveCurrentEdit();
         }
       });
